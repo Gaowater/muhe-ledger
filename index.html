@@ -41,13 +41,13 @@ svg{display:block}
 
 .app{max-width:1120px;margin:0 auto;padding:0 20px 96px}
 
-.topbar{display:flex;align-items:center;justify-content:center;gap:18px;height:56px;position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
-.brand{font-size:17px;font-weight:600;letter-spacing:.02em}
-.topbar-right{display:flex;align-items:center;gap:4px}
+.topbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:18px;height:56px;position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.brand{font-size:17px;font-weight:600;letter-spacing:.02em;justify-self:start}
+.topbar-right{display:flex;align-items:center;gap:4px;justify-self:end}
 .icon-btn{width:40px;height:40px;border-radius:20px;display:flex;align-items:center;justify-content:center;color:var(--text-2);transition:background .15s var(--ease-quart),color .15s}
 .icon-btn:hover{background:var(--surface-2);color:var(--text)}
 .icon-btn:active{transform:scale(.92)}
-.month-nav{display:flex;align-items:center;gap:2px}
+.month-nav{display:flex;align-items:center;gap:2px;justify-self:center}
 .month-nav .icon-btn{width:36px;height:36px}
 .month-label{min-width:96px;text-align:center;font-size:14px;font-weight:500;color:var(--text-2)}
 
@@ -166,6 +166,9 @@ svg{display:block}
 .search-input:focus{background:var(--surface);box-shadow:0 0 0 1.5px var(--accent) inset}
 .search-input::placeholder{color:var(--text-3)}
 .search-input::-webkit-search-cancel-button{-webkit-appearance:none}
+.filter-bar{display:flex;background:var(--surface-2);border-radius:11px;padding:3px;margin-top:12px}
+.fseg{flex:1;height:34px;border-radius:8px;font-size:13px;font-weight:500;color:var(--text-2);transition:all .2s var(--ease-quart)}
+.fseg.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-3);pointer-events:none}
 .search-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:32px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;color:var(--text-3)}
 .search-clear:hover{background:var(--surface);color:var(--text)}
@@ -205,6 +208,39 @@ svg{display:block}
 .set-input{width:100%;height:44px;background:var(--surface-2);border:none;border-radius:12px;padding:0 14px;font-size:14px;font-family:inherit;color:var(--text);outline:none;transition:box-shadow .15s}
 .set-input:focus{box-shadow:0 0 0 1.5px var(--accent) inset}
 .set-input::placeholder{color:var(--text-3)}
+/* 比账 */
+.cmp-card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:22px 20px;max-width:480px;margin:0 auto}
+.cmp-title{font-size:18px;font-weight:600}
+.cmp-desc{font-size:13px;color:var(--text-2);margin:8px 0 4px;line-height:1.6}
+.cmp-gen{display:block;text-align:center;margin-top:14px;font-size:13px;color:var(--accent)}
+.cmp-card .save-btn{width:100%}
+.cmp-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.cmp-edit{font-size:13px;color:var(--text-2);padding:7px 12px;border-radius:10px;background:var(--surface-2);white-space:nowrap}
+.cmp-me{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px 20px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center}
+.cmp-me div span{display:block;font-size:12px;color:var(--text-2)}
+.cmp-me div b{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.cmp-duel{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.cmp-duel-empty{grid-column:1/-1;background:var(--surface);border:1px dashed var(--line);border-radius:20px;padding:30px 20px;text-align:center;color:var(--text-2);font-size:13px;line-height:1.7}
+.cmp-card-name{font-size:15px;font-weight:600;text-align:center}
+.cmp-card.me{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.cmp-card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;margin-top:12px}
+.cmp-card-stats span{display:block;font-size:11px;color:var(--text-2)}
+.cmp-card-stats b{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+.cmp-card-vs{text-align:center;font-size:12px;color:var(--text-2);margin-top:12px}
+.cmp-list-title{font-size:13px;color:var(--text-2);margin:20px 0 10px;font-weight:500}
+.cmp-list{background:var(--surface);border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.cmp-row{display:grid;grid-template-columns:32px minmax(0,1fr) auto auto auto;gap:10px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line);font-size:13px;color:var(--text-2)}
+.cmp-row:last-child{border-bottom:none}
+.cmp-row.me{background:color-mix(in srgb,var(--accent) 7%,transparent);color:var(--text)}
+.cmp-row .cmp-rank{width:22px;height:22px;border-radius:50%;background:var(--surface-2);color:var(--text-2);font-size:12px;display:flex;align-items:center;justify-content:center;font-weight:600;flex:none}
+.cmp-row:nth-child(1) .cmp-rank{background:#f5a623;color:#fff}
+.cmp-row:nth-child(2) .cmp-rank{background:#b8bec6;color:#fff}
+.cmp-row:nth-child(3) .cmp-rank{background:#c98a5e;color:#fff}
+.cmp-nick{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmp-row-vals{white-space:nowrap;font-variant-numeric:tabular-nums}
+.cmp-row-vals b{font-variant-numeric:tabular-nums}
+.cmp-refresh{margin-top:14px;height:42px;border-radius:12px;background:var(--surface-2);color:var(--text-2);font-size:14px;font-weight:500;width:100%;transition:background .15s}
+.cmp-refresh:hover{background:var(--line)}
 .set-status{font-size:12px;color:var(--text-2);margin-top:10px;line-height:1.6;min-height:18px}
 .set-status.ok{color:var(--pos)}
 .set-status.err{color:var(--neg)}
@@ -276,12 +312,17 @@ svg{display:block}
   .topbar .brand{font-size:14px}
   .month-label{min-width:76px;font-size:13px}
   .topbar .icon-btn,.month-nav .icon-btn{width:32px;height:32px}
+  .cmp-row{grid-template-columns:28px minmax(0,1fr) auto auto;gap:8px;font-size:12px}
+  .cmp-row .cmp-row-vals.inc{display:none}
+  .cmp-duel{gap:10px}
 }
 
 @media (min-width:900px){
   .app{padding:0 32px 48px}
   .tabbar{display:none}
   #viewStats[hidden]{display:block!important}
+  #viewCompare[hidden]{display:block!important}
+  #viewCompare{grid-column:1/-1}
   .main{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
   .add-btn{max-width:320px}
   .sheet{left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-50%);width:640px;border-radius:24px;max-height:86vh;animation:sheetPop .35s var(--ease-expo) both}
@@ -333,6 +374,11 @@ svg{display:block}
         <input class="search-input" id="searchInput" type="search" placeholder="搜索备注、分类或金额" autocomplete="off" aria-label="搜索账单">
         <button class="search-clear" id="searchClear" aria-label="清空搜索" hidden><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       </div>
+      <div class="filter-bar" id="filterBar" role="group" aria-label="账单筛选">
+        <button class="fseg active" data-filter="all" aria-pressed="true">全部</button>
+        <button class="fseg" data-filter="expense" aria-pressed="false">支出</button>
+        <button class="fseg" data-filter="income" aria-pressed="false">收入</button>
+      </div>
       <div class="list" id="billList"></div>
     </section>
 
@@ -379,12 +425,43 @@ svg{display:block}
         </div>
       </div>
     </section>
+
+    <section class="view" id="viewCompare" aria-label="对比" hidden>
+      <div class="cmp-empty" id="cmpEmpty">
+        <div class="cmp-card">
+          <p class="cmp-title">和 TA 每月比账</p>
+          <p class="cmp-desc" id="cmpDesc">创建一个比账码发给对方，或输入 TA 的码加入。记账后自动上传本月汇总，比支出、比收入、比谁记得勤。</p>
+          <label class="set-label" for="cmpName">你的昵称</label>
+          <input class="set-input" id="cmpName" type="text" placeholder="例如：牧河" autocomplete="off" maxlength="12">
+          <label class="set-label" for="cmpRoom">比账码（6 位）</label>
+          <input class="set-input num" id="cmpRoom" type="text" placeholder="输入或生成" autocomplete="off" maxlength="6" inputmode="text">
+          <button class="save-btn" id="cmpJoin" style="margin-top:14px">加入比账</button>
+          <button class="cmp-gen" id="cmpGen">没有码？点这里生成一个</button>
+        </div>
+      </div>
+      <div class="cmp-ready" id="cmpReady" hidden>
+        <div class="cmp-head">
+          <div class="month-nav">
+            <button class="icon-btn" id="cmpPrevMonth" aria-label="上个月"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg></button>
+            <span class="month-label num" id="cmpMonthLabel">—</span>
+            <button class="icon-btn" id="cmpNextMonth" aria-label="下个月"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg></button>
+          </div>
+          <button class="cmp-edit" id="cmpEdit">换房间 / 改昵称</button>
+        </div>
+        <div class="cmp-me" id="cmpMe"></div>
+        <div class="cmp-duel" id="cmpDuel"></div>
+        <p class="cmp-list-title">房间月榜</p>
+        <div class="cmp-list" id="cmpList"></div>
+        <button class="cmp-refresh" id="cmpRefresh">刷新数据</button>
+      </div>
+    </section>
   </main>
 </div>
 
 <nav class="tabbar" aria-label="视图切换">
   <button class="tab active" data-view="bills" aria-label="账单"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M8.5 6h11M8.5 12h11M8.5 18h11"/><circle cx="4.5" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1" fill="currentColor" stroke="none"/></svg>账单</button>
   <button class="tab" data-view="stats" aria-label="统计"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>统计</button>
+  <button class="tab" data-view="compare" aria-label="对比"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 8h12"/><path d="M8 8 5.8 12a2.4 2.4 0 0 0 4.4 0L8 8z"/><path d="M16 8l-2.2 4a2.4 2.4 0 0 0 4.4 0L16 8z"/><path d="M9.5 20h5"/></svg>对比</button>
 </nav>
 
 <div class="backdrop" id="backdrop" hidden></div>
@@ -520,21 +597,22 @@ living:'<rect x="4" y="6" width="16" height="12" rx="2"/><path d="M4 8.5 12 14l8
 bonus:'<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5.5a2 2 0 0 0 0 4H8M16 6h2.5a2 2 0 0 1 0 4H16"/><path d="M12 13v4M9 19h6"/>',
 invest:'<path d="M4 17l5-5 3.5 3.5L20 8"/><path d="M15 8h5v5"/>',
 parttime:'<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3.5 2"/>',
+hongbao:'<rect x="4.5" y="7.5" width="15" height="12" rx="2.5"/><path d="M4.5 10.8C7 8.6 9.6 8.4 12 10.4c2.4-2 5-1.8 7.5.4"/><path d="M12 10.5V16"/><circle cx="12" cy="17.6" r="1.2"/>',
 other:'<circle cx="12" cy="12" r="3"/>'};
 const wrap=(n,sz)=>`<svg viewBox="0 0 24 24" width="${sz||20}" height="${sz||20}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]||''}</svg>`;
 const CATS_EXPENSE=[
 {id:'food',name:'餐饮',color:'#ff9500',icon:'food'},
 {id:'trans',name:'交通',color:'#0a84ff',icon:'trans'},
 {id:'shop',name:'购物',color:'#af52de',icon:'shop'},
-{id:'home',name:'居住',color:'#5856d6',icon:'home'},
+{id:'hongbao',name:'红包',color:'#f43f5e',icon:'hongbao'},
 {id:'fun',name:'娱乐',color:'#ff2d55',icon:'fun'},
 {id:'health',name:'医疗',color:'#ff3b30',icon:'health'},
 {id:'edu',name:'学习',color:'#32d74b',icon:'edu'},
 {id:'other',name:'其他',color:'#8e8e93',icon:'other'}];
 const CATS_INCOME=[
 {id:'living',name:'生活费',color:'#34c759',icon:'living'},
+{id:'hongbao',name:'红包',color:'#f43f5e',icon:'hongbao'},
 {id:'bonus',name:'奖金',color:'#f5a623',icon:'bonus'},
-{id:'invest',name:'理财收益',color:'#5ac8fa',icon:'invest'},
 {id:'parttime',name:'兼职',color:'#00c7be',icon:'parttime'},
 {id:'other',name:'其他',color:'#8e8e93',icon:'other'}];
 const CATS=CATS_EXPENSE;
@@ -558,7 +636,7 @@ function seed(){
     ['expense','shop',129,'洗衣液'],['expense','food',45.5,'晚饭'],
     ['expense','fun',58,'电影'],['expense','health',120,'挂号'],
     ['expense','edu',68,'专业书'],['income','living',5436.5,'生活费'],
-    ['expense','food',98,'和女朋友吃饭'],['expense','home',300,'电费'],
+    ['expense','food',98,'和女朋友吃饭'],['expense','other',300,'电费'],
     ['expense','shop',210,'T恤'],['expense','food',76,'聚餐'],
     ['expense','trans',15,'地铁']];
   const offs=[0,0,1,1,2,3,6,8,10,13,15,16,17];
@@ -588,9 +666,15 @@ try{
   }
 }catch(e){entries=null}
 if(!entries)entries=[];
-entries.forEach(e=>{if(e.type==='income'&&e.cat==='salary')e.cat='living'});
+entries.forEach(e=>{
+  if(e.type==='income'&&e.cat==='salary')e.cat='living';
+  if(e.type==='expense'&&e.cat==='home')e.cat='other';
+  if(e.type==='income'&&e.cat==='invest')e.cat='other';
+});
 let budgets={};
 try{budgets=JSON.parse(localStorage.getItem('ledger.budgets')||'{}')}catch(e){}
+if(budgets.home){budgets.other=(budgets.other||0)+budgets.home;delete budgets.home}
+if(budgets.invest){budgets.other=(budgets.other||0)+budgets.invest;delete budgets.invest}
 
 /* Supabase 同步适配层（本地优先，可选云端） */
 const sbCfgKey='ledger.supabase.v1';
@@ -656,8 +740,127 @@ async function sync(){
     if(br&&br.length){const nb={};br.forEach(b=>{nb[b.cat]=b.amount});budgets=nb}
     saveSyncTs();
     save();saveBudgets();render();
+    uploadAggregate();
   }catch(e){console.warn('sync merge failed',e)}
 }
+
+/* 比账（房间聚合对比） */
+const cmpKey='ledger.compare.v1';
+let cmp=null;
+try{cmp=JSON.parse(localStorage.getItem(cmpKey)||'null')}catch(e){cmp=null}
+if(!cmp||typeof cmp!=='object')cmp={room:'',nickname:''};
+const cmpState={ym:todayISO.slice(0,7),peer:null,data:null};
+function saveCmp(){localStorage.setItem(cmpKey,JSON.stringify(cmp))}
+function cmpReady(){return sbReady()&&cmp.room&&cmp.nickname}
+function aggFor(ym){
+  const list=entries.filter(e=>e.date.startsWith(ym));
+  const s=sums(list);
+  return{expense:Math.round(s.out*100)/100,income:Math.round(s.inc*100)/100,count:list.length};
+}
+function uploadAggregate(){
+  if(!cmpReady())return Promise.resolve();
+  const a=aggFor(state.ym);
+  return sb.from('aggregates_v1').upsert(
+    {room_code:cmp.room,nickname:cmp.nickname,ym:state.ym,expense:a.expense,income:a.income,count:a.count,updated_at:Date.now()},
+    {onConflict:'room_code,nickname,ym'}
+  ).catch(e=>console.warn('compare upload failed',e));
+}
+async function fetchAggregates(ym){
+  if(!cmpReady())return;
+  try{
+    const{data}=await sb.from('aggregates_v1').select('*').eq('room_code',cmp.room).eq('ym',ym);
+    cmpState.data=(data||[]).filter(r=>r.nickname).map(r=>({nickname:r.nickname,expense:+r.expense||0,income:+r.income||0,count:+r.count||0}));
+  }catch(e){console.warn('compare fetch failed',e)}
+}
+function genRoomCode(){
+  const chars='23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let s='';for(let i=0;i<6;i++)s+=chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+function renderCompare(){
+  const empty=document.getElementById('cmpEmpty'),ready=document.getElementById('cmpReady');
+  if(!cmpReady()){
+    empty.hidden=false;ready.hidden=true;
+    document.getElementById('cmpName').value=cmp.nickname||'';
+    document.getElementById('cmpRoom').value=cmp.room||'';
+    document.getElementById('cmpDesc').textContent=sbReady()
+      ?'创建一个比账码发给对方，或输入 TA 的码加入。记账后自动上传本月汇总，比支出、比收入、比谁记得勤。'
+      :'比账需要云端能力：先在右上角「同步设置」里填好 URL / Key / 同步口令，再回来创建或加入比账码。';
+    return;
+  }
+  empty.hidden=true;ready.hidden=false;
+  const[y,m]=ymParts(cmpState.ym);
+  document.getElementById('cmpMonthLabel').textContent=`${y}年${m}月`;
+  renderCmpMe();renderCmpDuel();renderCmpList();
+}
+function renderCmpMe(){
+  const me=aggFor(cmpState.ym);
+  document.getElementById('cmpMe').innerHTML=
+    `<div><span>支出</span><b class="out">${fmt(me.expense)}</b></div>`+
+    `<div><span>收入</span><b class="in">${fmt(me.income)}</b></div>`+
+    `<div><span>笔数</span><b>${me.count} 笔</b></div>`;
+}
+function renderCmpDuel(){
+  const box=document.getElementById('cmpDuel');
+  const peers=(cmpState.data||[]).filter(r=>r.nickname!==cmp.nickname);
+  if(!peers.length){
+    box.innerHTML='<div class="cmp-duel-empty">这个月房间里还没有其他人的数据<br>把比账码发给对方，让 TA 也加入比账吧</div>';
+    return;
+  }
+  if(!cmpState.peer||!peers.some(p=>p.nickname===cmpState.peer))cmpState.peer=peers[0].nickname;
+  const peer=peers.find(p=>p.nickname===cmpState.peer);
+  const me=aggFor(cmpState.ym);
+  const card=(name,vals,self)=>{
+    const diff=me.expense-vals.expense;
+    const txt=self?'':(diff>0?`我比 TA 多花了 ${fmt(diff)}`:(diff<0?`TA 比我多花了 ${fmt(-diff)}`:'我俩花得一样多'));
+    return `<div class="cmp-card${self?' me':''}">
+      <p class="cmp-card-name">${name}${self?'（我）':''}</p>
+      <div class="cmp-card-stats">
+        <div><span>支出</span><b class="out">${fmt(vals.expense)}</b></div>
+        <div><span>收入</span><b class="in">${fmt(vals.income)}</b></div>
+        <div><span>笔数</span><b>${vals.count} 笔</b></div>
+      </div>
+      <p class="cmp-card-vs">${txt}</p>
+    </div>`;
+  };
+  box.innerHTML=card(cmp.nickname,me,true)+card(peer.nickname,peer,false);
+}
+function renderCmpList(){
+  const me=aggFor(cmpState.ym);
+  const rows=[{nickname:cmp.nickname,expense:me.expense,income:me.income,count:me.count}]
+    .concat((cmpState.data||[]).filter(r=>r.nickname!==cmp.nickname));
+  const uniq=[];const seen=new Set();
+  rows.forEach(r=>{if(!seen.has(r.nickname)){seen.add(r.nickname);uniq.push(r)}});
+  const sorted=[...uniq].sort((a,b)=>b.expense-a.expense);
+  document.getElementById('cmpList').innerHTML=sorted.map((r,i)=>`<div class="cmp-row${r.nickname===cmp.nickname?' me':''}" data-nick="${r.nickname}" role="button" tabindex="0" aria-label="与 ${r.nickname} 对比">
+    <span class="cmp-rank">${i+1}</span>
+    <span class="cmp-nick">${r.nickname}${r.nickname===cmp.nickname?'（我）':''}</span>
+    <span class="cmp-row-vals">支 <b class="out">${fmt(r.expense)}</b></span>
+    <span class="cmp-row-vals inc">收 <b class="in">${fmt(r.income)}</b></span>
+    <span class="cmp-row-vals">${r.count} 笔</span>
+  </div>`).join('');
+}
+function shiftCmpMonth(d){
+  const[y,m]=ymParts(cmpState.ym);let mm=m+d,yy=y;
+  if(mm<1){mm=12;yy--}if(mm>12){mm=1;yy++}
+  cmpState.ym=ymKey(yy,mm);
+  fetchAggregates(cmpState.ym).then(renderCompare);
+}
+document.getElementById('cmpJoin').addEventListener('click',()=>{
+  const nick=document.getElementById('cmpName').value.trim(),room=document.getElementById('cmpRoom').value.trim().toUpperCase();
+  if(!nick){document.getElementById('cmpName').focus();return}
+  if(room.length<6){document.getElementById('cmpRoom').focus();return}
+  cmp={nickname:nick,room};
+  saveCmp();cmpState.ym=state.ym;cmpState.data=null;
+  uploadAggregate().then(()=>fetchAggregates(cmpState.ym)).then(renderCompare);
+});
+document.getElementById('cmpGen').addEventListener('click',()=>{document.getElementById('cmpRoom').value=genRoomCode()});
+document.getElementById('cmpEdit').addEventListener('click',()=>{cmp={room:'',nickname:''};saveCmp();cmpState.data=null;renderCompare()});
+document.getElementById('cmpPrevMonth').addEventListener('click',()=>shiftCmpMonth(-1));
+document.getElementById('cmpNextMonth').addEventListener('click',()=>shiftCmpMonth(1));
+document.getElementById('cmpRefresh').addEventListener('click',()=>{fetchAggregates(cmpState.ym).then(renderCompare)});
+document.getElementById('cmpList').addEventListener('click',e=>{const row=e.target.closest('.cmp-row');if(row){cmpState.peer=row.dataset.nick;renderCompare()}});
+document.getElementById('cmpList').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList.contains('cmp-row')){cmpState.peer=e.target.dataset.nick;renderCompare()}});
 
 function save(){
   localStorage.setItem('ledger.entries.v2',JSON.stringify(entries));
@@ -666,7 +869,7 @@ function save(){
 function saveBudgets(){localStorage.setItem('ledger.budgets',JSON.stringify(budgets));sbPush()}
 
 let trendState=null;
-const state={ym:`${now.getFullYear()}-${pad(now.getMonth()+1)}`,view:'bills',trend:'month',query:'',sheet:{type:'expense',cat:'food',amount:'',note:'',date:todayISO,editId:null},budgetSheet:{cat:'food',amount:''}};
+const state={ym:`${now.getFullYear()}-${pad(now.getMonth()+1)}`,view:'bills',trend:'month',query:'',filter:'all',sheet:{type:'expense',cat:'food',amount:'',note:'',date:todayISO,editId:null},budgetSheet:{cat:'food',amount:''}};
 
 const $=id=>document.getElementById(id);
 const monthLabel=$('monthLabel'),billList=$('billList'),balance=$('balance'),expense=$('expense'),income=$('income');
@@ -709,9 +912,14 @@ function searchList(){
 }
 function renderBills(){
   const searching=!!(state.query&&state.query.trim());
-  const list=searching?searchList():monthEntries().sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+  const base=searching?searchList():monthEntries().sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+  const list=state.filter==='all'?base:base.filter(e=>e.type===state.filter);
   if(!list.length){
-    billList.innerHTML=`<div class="empty">${searching?'没有找到匹配的账目':'这个月还没有账目<br>点上面的「记一笔」开始吧'}</div>`;
+    const emptyTxt=searching?'没有找到匹配的账目'
+      :state.filter==='expense'?'这个月还没有支出记录<br>点上面的「记一笔」开始吧'
+      :state.filter==='income'?'这个月还没有收入记录<br>点上面的「记一笔」开始吧'
+      :'这个月还没有账目<br>点上面的「记一笔」开始吧';
+    billList.innerHTML=`<div class="empty">${emptyTxt}</div>`;
     return;
   }
   let html='',cur='',i=0;
@@ -730,6 +938,11 @@ function renderBills(){
 }
 billList.addEventListener('click',e=>{const row=e.target.closest('.row');if(row)openSheet(+row.dataset.id)});
 billList.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList.contains('row'))openSheet(+e.target.dataset.id)});
+document.querySelectorAll('#filterBar .fseg').forEach(b=>b.addEventListener('click',()=>{
+  state.filter=b.dataset.filter;
+  document.querySelectorAll('#filterBar .fseg').forEach(x=>{const on=x===b;x.classList.toggle('active',on);x.setAttribute('aria-pressed',on)});
+  renderBills();
+}));
 function renderRing(){
   const C=2*Math.PI*52;
   const segs=monthEntries().filter(e=>e.type==='expense');
@@ -982,7 +1195,9 @@ function setView(v){
   document.querySelectorAll('.tab').forEach(t=>{const on=t.dataset.view===v;t.classList.toggle('active',on);t.setAttribute('aria-selected',on)});
   $('viewBills').hidden=v!=='bills';
   $('viewStats').hidden=v!=='stats';
+  $('viewCompare').hidden=v!=='compare';
   if(v==='stats')renderStats();
+  if(v==='compare'){renderCompare();fetchAggregates(cmpState.ym).then(()=>renderCompare())}
 }
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>setView(t.dataset.view)));
 $('prevMonth').addEventListener('click',()=>{shiftMonth(-1);render()});
@@ -1114,6 +1329,7 @@ $('saveBtn').addEventListener('click',()=>{
   }
   save();closeSheet();render();
   if(state.view==='stats')setView('bills');
+  uploadAggregate();
 });
 $('delBtn').addEventListener('click',()=>{
   if(!state.sheet.editId)return;
@@ -1125,6 +1341,7 @@ $('delBtn').addEventListener('click',()=>{
     sbPush();
   }
   save();closeSheet();render();
+  uploadAggregate();
 });
 
 /* 搜索 */
