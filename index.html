@@ -322,8 +322,10 @@ svg{display:block}
   .tabbar{display:none}
   #viewStats[hidden]{display:block!important}
   #viewCompare[hidden]{display:block!important}
-  #viewCompare{grid-column:1/-1}
-  .main{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+  .main{display:grid;grid-template-areas:"bills stats" "bills compare";grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+  #viewBills{grid-area:bills}
+  #viewStats{grid-area:stats}
+  #viewCompare{grid-area:compare}
   .add-btn{max-width:320px}
   .sheet{left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-50%);width:640px;border-radius:24px;max-height:86vh;animation:sheetPop .35s var(--ease-expo) both}
   .sheet-body{display:grid;grid-template-columns:270px 1fr;gap:28px}
