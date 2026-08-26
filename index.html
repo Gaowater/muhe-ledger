@@ -775,7 +775,7 @@ async function sync(){
     if(br&&br.length){const nb={};br.forEach(b=>{nb[b.cat]=b.amount});budgets=nb}
     saveSyncTs();
     save();saveBudgets();render();
-    uploadAggregate();
+    uploadAggregate(state.ym);uploadAggregate(cmpState.ym);
   }catch(e){console.warn('sync merge failed',e)}
 }
 
@@ -783,8 +783,9 @@ async function sync(){
 const cmpKey='ledger.compare.v1';
 let cmp=null;
 try{cmp=JSON.parse(localStorage.getItem(cmpKey)||'null')}catch(e){cmp=null}
-if(!cmp||typeof cmp!=='object')cmp={room:'',nickname:''};
-const cmpState={ym:todayISO.slice(0,7),peer:null,data:null};
+if(!cmp||typeof cmp!=='object')cmp={room:'',nickname:'',peer_id:''};
+if(!cmp.peer_id)cmp.peer_id=genPeerId();
+const cmpState={ym:todayISO.slice(0,7),peer:null,data:null,fetchErr:''};
 function saveCmp(){localStorage.setItem(cmpKey,JSON.stringify(cmp))}
 function cmpReady(){return sbReady()&&cmp.room&&cmp.nickname}
 function aggFor(ym){
@@ -792,22 +793,29 @@ function aggFor(ym){
   const s=sums(list);
   return{expense:Math.round(s.out*100)/100,income:Math.round(s.inc*100)/100,count:list.length};
 }
-function uploadAggregate(){
+function uploadAggregate(ym){
   if(!cmpReady())return Promise.resolve();
-  const a=aggFor(state.ym);
+  ym=ym||state.ym;
+  const a=aggFor(ym);
   return sb.from('aggregates_v1').upsert(
-    {room_code:cmp.room,nickname:cmp.nickname,ym:state.ym,expense:a.expense,income:a.income,count:a.count,updated_at:Date.now()},
-    {onConflict:'room_code,nickname,ym'}
+    {room_code:cmp.room,peer_id:cmp.peer_id,nickname:cmp.nickname,ym:ym,expense:a.expense,income:a.income,count:a.count,updated_at:Date.now()},
+    {onConflict:'room_code,peer_id,ym'}
   ).catch(e=>console.warn('compare upload failed',e));
 }
 async function fetchAggregates(ym){
   if(!cmpReady())return false;
   try{
     const{data,error}=await sb.from('aggregates_v1').select('*').eq('room_code',cmp.room).eq('ym',ym);
-    if(error){console.warn('compare fetch failed',error);return false}
-    cmpState.data=(data||[]).filter(r=>r.nickname).map(r=>({nickname:r.nickname,expense:+r.expense||0,income:+r.income||0,count:+r.count||0}));
+    if(error){cmpState.fetchErr=(error.message||'查询失败')+'（检查云端 aggregates_v1 表是否已用新 SQL 重建）';console.warn('compare fetch failed',error);return false}
+    cmpState.fetchErr='';
+    cmpState.data=(data||[]).filter(r=>r.peer_id||r.nickname).map(r=>({peer_id:r.peer_id||'',nickname:r.nickname,expense:+r.expense||0,income:+r.income||0,count:+r.count||0}));
     return true;
-  }catch(e){console.warn('compare fetch failed',e);return false}
+  }catch(e){cmpState.fetchErr=(e.message||'网络错误')+'（检查云端 aggregates_v1 表是否已用新 SQL 重建）';console.warn('compare fetch failed',e);return false}
+}
+function genPeerId(){
+  const chars='23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  let s='';for(let i=0;i<8;i++)s+=chars[Math.floor(Math.random()*chars.length)];
+  return s;
 }
 function genRoomCode(){
   const chars='23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -839,13 +847,13 @@ function renderCmpMe(){
 }
 function renderCmpDuel(){
   const box=document.getElementById('cmpDuel');
-  const peers=(cmpState.data||[]).filter(r=>r.nickname!==cmp.nickname);
+  const peers=(cmpState.data||[]).filter(r=>r.peer_id&&r.peer_id!==cmp.peer_id);
   if(!peers.length){
-    box.innerHTML='<div class="cmp-duel-empty">这个月房间里还没有其他人的数据<br>把比账码发给对方，让 TA 也加入比账吧</div>';
+    box.innerHTML='<div class="cmp-duel-empty">'+(cmpState.fetchErr?('拉取失败：'+cmpState.fetchErr):'这个月房间里还没有其他人的数据<br>把比账码发给对方，让 TA 也加入比账吧')+'</div>';
     return;
   }
-  if(!cmpState.peer||!peers.some(p=>p.nickname===cmpState.peer))cmpState.peer=peers[0].nickname;
-  const peer=peers.find(p=>p.nickname===cmpState.peer);
+  if(!cmpState.peer||!peers.some(p=>p.peer_id===cmpState.peer))cmpState.peer=peers[0].peer_id;
+  const peer=peers.find(p=>p.peer_id===cmpState.peer);
   const me=aggFor(cmpState.ym);
   const card=(name,vals,self)=>{
     const diff=me.expense-vals.expense;
@@ -864,14 +872,14 @@ function renderCmpDuel(){
 }
 function renderCmpList(){
   const me=aggFor(cmpState.ym);
-  const rows=[{nickname:cmp.nickname,expense:me.expense,income:me.income,count:me.count}]
-    .concat((cmpState.data||[]).filter(r=>r.nickname!==cmp.nickname));
+  const rows=[{peer_id:cmp.peer_id,nickname:cmp.nickname,expense:me.expense,income:me.income,count:me.count}]
+    .concat((cmpState.data||[]).filter(r=>r.peer_id&&r.peer_id!==cmp.peer_id));
   const uniq=[];const seen=new Set();
-  rows.forEach(r=>{if(!seen.has(r.nickname)){seen.add(r.nickname);uniq.push(r)}});
+  rows.forEach(r=>{if(!seen.has(r.peer_id)){seen.add(r.peer_id);uniq.push(r)}});
   const sorted=[...uniq].sort((a,b)=>b.expense-a.expense);
-  document.getElementById('cmpList').innerHTML=sorted.map((r,i)=>`<div class="cmp-row${r.nickname===cmp.nickname?' me':''}" data-nick="${r.nickname}" role="button" tabindex="0" aria-label="与 ${r.nickname} 对比">
+  document.getElementById('cmpList').innerHTML=sorted.map((r,i)=>`<div class="cmp-row${r.peer_id===cmp.peer_id?' me':''}" data-peer="${r.peer_id}" role="button" tabindex="0" aria-label="与 ${r.nickname} 对比">
     <span class="cmp-rank">${i+1}</span>
-    <span class="cmp-nick">${r.nickname}${r.nickname===cmp.nickname?'（我）':''}</span>
+    <span class="cmp-nick">${r.nickname}${r.peer_id===cmp.peer_id?'（我）':''}</span>
     <span class="cmp-row-vals">支 <b class="out">${fmt(r.expense)}</b></span>
     <span class="cmp-row-vals inc">收 <b class="in">${fmt(r.income)}</b></span>
     <span class="cmp-row-vals">${r.count} 笔</span>
@@ -881,19 +889,19 @@ function shiftCmpMonth(d){
   const[y,m]=ymParts(cmpState.ym);let mm=m+d,yy=y;
   if(mm<1){mm=12;yy--}if(mm>12){mm=1;yy++}
   cmpState.ym=ymKey(yy,mm);
-  fetchAggregates(cmpState.ym).then(renderCompare);
+  uploadAggregate(cmpState.ym).then(()=>fetchAggregates(cmpState.ym)).then(()=>renderCompare());
 }
 document.getElementById('cmpJoin').addEventListener('click',()=>{
   const nick=document.getElementById('cmpName').value.trim(),room=document.getElementById('cmpRoom').value.trim().toUpperCase();
   if(!nick){document.getElementById('cmpName').focus();return}
   if(room.length<6){document.getElementById('cmpRoom').focus();return}
-  cmp={nickname:nick,room};
-  saveCmp();cmpState.ym=state.ym;cmpState.data=null;
+  cmp={nickname:nick,room,peer_id:cmp.peer_id||genPeerId()};
+  saveCmp();cmpState.ym=state.ym;cmpState.data=null;cmpState.fetchErr='';
   renderCompare();
-  uploadAggregate().then(()=>fetchAggregates(cmpState.ym)).then(()=>renderCompare());
+  uploadAggregate(cmpState.ym).then(()=>fetchAggregates(cmpState.ym)).then(()=>renderCompare());
 });
 document.getElementById('cmpGen').addEventListener('click',()=>{document.getElementById('cmpRoom').value=genRoomCode()});
-document.getElementById('cmpEdit').addEventListener('click',()=>{cmp={room:'',nickname:''};saveCmp();cmpState.data=null;renderCompare()});
+document.getElementById('cmpEdit').addEventListener('click',()=>{cmp={room:'',nickname:'',peer_id:cmp.peer_id||genPeerId()};saveCmp();cmpState.data=null;cmpState.fetchErr='';renderCompare()});
 document.getElementById('cmpPrevMonth').addEventListener('click',()=>shiftCmpMonth(-1));
 document.getElementById('cmpNextMonth').addEventListener('click',()=>shiftCmpMonth(1));
 document.getElementById('cmpRefresh').addEventListener('click',()=>{
@@ -914,8 +922,8 @@ document.getElementById('cmpRefresh').addEventListener('click',()=>{
     }
   });
 });
-document.getElementById('cmpList').addEventListener('click',e=>{const row=e.target.closest('.cmp-row');if(row){cmpState.peer=row.dataset.nick;renderCompare()}});
-document.getElementById('cmpList').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList.contains('cmp-row')){cmpState.peer=e.target.dataset.nick;renderCompare()}});
+document.getElementById('cmpList').addEventListener('click',e=>{const row=e.target.closest('.cmp-row');if(row){cmpState.peer=row.dataset.peer;renderCompare()}});
+document.getElementById('cmpList').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList.contains('cmp-row')){cmpState.peer=e.target.dataset.peer;renderCompare()}});
 
 function save(){
   localStorage.setItem('ledger.entries.v2',JSON.stringify(entries));
