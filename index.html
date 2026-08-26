@@ -342,6 +342,10 @@ svg{display:block}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0ms!important;transition-duration:.01ms!important}
 }
+
+/* 【临时验证】隐藏统计模块，用于验证静默热更新是否生效 —— 验证完删除 */
+#viewStats{display:none!important}
+.tab[data-view="stats"]{display:none!important}
 </style>
 </head>
 <body>
