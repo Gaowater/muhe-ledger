@@ -228,17 +228,14 @@ svg{display:block}
 .cmp-card .save-btn{width:100%}
 .cmp-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
 .cmp-edit{font-size:13px;color:var(--text-2);padding:7px 12px;border-radius:10px;background:var(--surface-2);white-space:nowrap}
-.cmp-me{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px 20px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center}
-.cmp-me div span{display:block;font-size:12px;color:var(--text-2)}
-.cmp-me div b{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
-.cmp-duel{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.cmp-duel{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
 .cmp-duel-empty{grid-column:1/-1;background:var(--surface);border:1px dashed var(--line);border-radius:20px;padding:30px 20px;text-align:center;color:var(--text-2);font-size:13px;line-height:1.7}
-.cmp-card-name{font-size:15px;font-weight:600;text-align:center}
+.cmp-card-name{font-size:16px;font-weight:700;text-align:center}
 .cmp-card.me{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
 .cmp-card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;margin-top:12px}
 .cmp-card-stats span{display:block;font-size:11px;color:var(--text-2)}
-.cmp-card-stats b{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
-.cmp-card-vs{text-align:center;font-size:12px;color:var(--text-2);margin-top:12px}
+.cmp-card-stats b{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.cmp-vs-line{grid-column:1/-1;text-align:center;font-size:13px;color:var(--text-2);padding:2px 0 6px}
 .cmp-list-title{font-size:13px;color:var(--text-2);margin:20px 0 10px;font-weight:500}
 .cmp-list{background:var(--surface);border:1px solid var(--line);border-radius:20px;overflow:hidden}
 .cmp-row{display:grid;grid-template-columns:32px minmax(0,1fr) auto auto auto;gap:10px;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line);font-size:13px;color:var(--text-2)}
@@ -333,7 +330,7 @@ svg{display:block}
   .topbar .icon-btn,.month-nav .icon-btn{width:32px;height:32px}
   .cmp-row{grid-template-columns:28px minmax(0,1fr) auto auto;gap:8px;font-size:12px}
   .cmp-row .cmp-row-vals.inc{display:none}
-  .cmp-duel{gap:10px}
+  .cmp-duel{gap:12px}
 }
 
 @media (min-width:900px){
@@ -469,7 +466,6 @@ svg{display:block}
           </div>
           <button class="cmp-edit" id="cmpEdit">换房间 / 改昵称</button>
         </div>
-        <div class="cmp-me" id="cmpMe"></div>
         <div class="cmp-duel" id="cmpDuel"></div>
         <p class="cmp-list-title">房间月榜</p>
         <div class="cmp-list" id="cmpList"></div>
@@ -837,14 +833,7 @@ function renderCompare(){
   empty.hidden=true;ready.hidden=false;
   const[y,m]=ymParts(cmpState.ym);
   document.getElementById('cmpMonthLabel').textContent=`${y}年${m}月`;
-  renderCmpMe();renderCmpDuel();renderCmpList();
-}
-function renderCmpMe(){
-  const me=aggFor(cmpState.ym);
-  document.getElementById('cmpMe').innerHTML=
-    `<div><span>支出</span><b class="out">${fmt(me.expense)}</b></div>`+
-    `<div><span>收入</span><b class="in">${fmt(me.income)}</b></div>`+
-    `<div><span>笔数</span><b>${me.count} 笔</b></div>`;
+  renderCmpDuel();renderCmpList();
 }
 function renderCmpDuel(){
   const box=document.getElementById('cmpDuel');
@@ -857,8 +846,6 @@ function renderCmpDuel(){
   const peer=peers.find(p=>p.peer_id===cmpState.peer);
   const me=aggFor(cmpState.ym);
   const card=(name,vals,self)=>{
-    const diff=me.expense-vals.expense;
-    const txt=self?'':(diff>0?`我比 TA 多花了 ${fmt(diff)}`:(diff<0?`TA 比我多花了 ${fmt(-diff)}`:'我俩花得一样多'));
     return `<div class="cmp-card${self?' me':''}">
       <p class="cmp-card-name">${name}${self?'（我）':''}</p>
       <div class="cmp-card-stats">
@@ -866,10 +853,11 @@ function renderCmpDuel(){
         <div><span>收入</span><b class="in">${fmt(vals.income)}</b></div>
         <div><span>笔数</span><b>${vals.count} 笔</b></div>
       </div>
-      <p class="cmp-card-vs">${txt}</p>
     </div>`;
   };
-  box.innerHTML=card(cmp.nickname,me,true)+card(peer.nickname,peer,false);
+  const diff=me.expense-peer.expense;
+  const vs=diff>0?`我比 TA 多花了 ${fmt(diff)}`:(diff<0?`TA 比我多花了 ${fmt(-diff)}`:'我俩花得一样多');
+  box.innerHTML=card(cmp.nickname,me,true)+card(peer.nickname,peer,false)+`<p class="cmp-vs-line">${vs}</p>`;
 }
 function renderCmpList(){
   const me=aggFor(cmpState.ym);
