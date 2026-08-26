@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>牧河账本</title>
 <script src="supabase.min.js"></script>
+<script src="supabase-config.js"></script>
 <style>
 :root{
   --bg:#f5f5f7; --surface:#ffffff; --surface-2:#f0f0f2;
@@ -682,6 +683,8 @@ if(budgets.invest){budgets.other=(budgets.other||0)+budgets.invest;delete budget
 const sbCfgKey='ledger.supabase.v1';
 let sb=null,sbCfg=null;
 try{sbCfg=JSON.parse(localStorage.getItem(sbCfgKey)||'null')}catch(e){sbCfg=null}
+/* APK 内置配置兜底：仅当本地无自定义配置时生效（浏览器端 supabase-config.js 为空，此处跳过） */
+if(!sbCfg&&window.__BUILTIN_SUPABASE__){sbCfg=window.__BUILTIN_SUPABASE__}
 function sbInit(){
   sb=null;
   if(!sbCfg||!sbCfg.url||!sbCfg.key||!sbCfg.owner||!window.supabase)return;

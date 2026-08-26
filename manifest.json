@@ -1,0 +1,13 @@
+{
+  "version": "20260826-1249",
+  "files": [
+    {
+      "path": "index.html",
+      "sha256": "23c3fe0443c610407a51525c5b1d59280a71b0fb785b0363efd27fb3b73f4f15"
+    },
+    {
+      "path": "supabase.min.js",
+      "sha256": "067bfb36a5102cf4b38b45c70e1440a9e3291903666600994b4fbacd7ab54722"
+    }
+  ]
+}
