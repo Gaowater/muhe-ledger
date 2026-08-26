@@ -1522,6 +1522,13 @@ document.addEventListener('keydown',e=>{
     else if(!sheet.hidden)closeSheet();
   }
 });
+/* 系统返回键（App bridge）：优先关闭当前打开的界面，全部关闭后返回 false 让 App 退出 */
+window.muheBack=function(){
+  if(!$('settingsSheet').hidden){closeSettings();return true}
+  if(!$('budgetSheet').hidden){closeBudgetSheet();return true}
+  if(!sheet.hidden){closeSheet();return true}
+  return false;
+};
 </script>
 </body>
 </html>
