@@ -800,7 +800,8 @@ function uploadAggregate(ym){
   return sb.from('aggregates_v1').upsert(
     {room_code:cmp.room,peer_id:cmp.peer_id,nickname:cmp.nickname,ym:ym,expense:a.expense,income:a.income,count:a.count,updated_at:Date.now()},
     {onConflict:'room_code,peer_id,ym'}
-  ).catch(e=>console.warn('compare upload failed',e));
+  ).then(()=>{if(cmpState.fetchErr&&cmpState.fetchErr.indexOf('上传失败')===0)cmpState.fetchErr=''})
+   .catch(e=>{console.warn('compare upload failed',e);cmpState.fetchErr='上传失败：'+(e.message||e||'未知错误');renderCompare()});
 }
 async function fetchAggregates(ym){
   if(!cmpReady())return false;
@@ -909,7 +910,7 @@ document.getElementById('cmpRefresh').addEventListener('click',()=>{
   if(btn.disabled)return;
   btn.disabled=true;
   btn.innerHTML='<span class="cmp-spinner"></span>刷新中…';
-  fetchAggregates(cmpState.ym).then(ok=>{
+  uploadAggregate(cmpState.ym).then(()=>fetchAggregates(cmpState.ym)).then(ok=>{
     renderCompare();
     if(ok){
       btn.classList.add('done');
