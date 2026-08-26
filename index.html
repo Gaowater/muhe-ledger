@@ -783,6 +783,24 @@ if(!cmp||typeof cmp!=='object')cmp={room:'',nickname:'',peer_id:''};
 if(!cmp.peer_id)cmp.peer_id=genPeerId();
 const cmpState={ym:todayISO.slice(0,7),peer:null,data:null,fetchErr:''};
 function saveCmp(){localStorage.setItem(cmpKey,JSON.stringify(cmp))}
+/* localStorage 兜底：iframe 预览/隐私模式下 setItem 会被浏览器静默阻止，
+   改用 URL hash 同步一份（刷新必然保留 hash），加载时从中恢复 */
+function persistCmp(){
+  try{saveCmp()}catch(e){}
+  try{
+    const q=new URLSearchParams(location.hash.replace(/^#/,''));
+    q.set('nick',cmp.nickname||'');q.set('room',cmp.room||'');
+    const h='#'+q.toString();
+    if(location.hash!==h)history.replaceState(null,'',h);
+  }catch(e){}
+}
+try{
+  const q=new URLSearchParams(location.hash.replace(/^#/,''));
+  const n=q.get('nick'),r=q.get('room');
+  if(n!==null&&n!==cmp.nickname)cmp.nickname=n;
+  if(r!==null&&r!==cmp.room)cmp.room=r;
+  try{saveCmp()}catch(e){}
+}catch(e){}
 function cmpReady(){return sbReady()&&cmp.room&&cmp.nickname}
 function aggFor(ym){
   const list=entries.filter(e=>e.date.startsWith(ym));
@@ -885,22 +903,22 @@ document.getElementById('cmpJoin').addEventListener('click',()=>{
   if(!nick){document.getElementById('cmpName').focus();return}
   if(room.length<6){document.getElementById('cmpRoom').focus();return}
   cmp={nickname:nick,room,peer_id:cmp.peer_id||genPeerId()};
-  saveCmp();cmpState.ym=state.ym;cmpState.data=null;cmpState.fetchErr='';
+  persistCmp();cmpState.ym=state.ym;cmpState.data=null;cmpState.fetchErr='';
   renderCompare();
   uploadAggregate(cmpState.ym).then(()=>fetchAggregates(cmpState.ym)).then(()=>renderCompare());
 });
 document.getElementById('cmpGen').addEventListener('click',()=>{document.getElementById('cmpRoom').value=genRoomCode()});
-document.getElementById('cmpEdit').addEventListener('click',()=>{cmp={room:'',nickname:'',peer_id:cmp.peer_id||genPeerId()};saveCmp();cmpState.data=null;cmpState.fetchErr='';renderCompare()});
+document.getElementById('cmpEdit').addEventListener('click',()=>{cmp={room:'',nickname:'',peer_id:cmp.peer_id||genPeerId()};persistCmp();cmpState.data=null;cmpState.fetchErr='';renderCompare()});
 /* 昵称/房间号输入即保存（刷新不丢）+ 回车直接加入 */
 document.getElementById('cmpName').addEventListener('input',()=>{
   cmp.nickname=document.getElementById('cmpName').value.trim();
   cmp.peer_id=cmp.peer_id||genPeerId();
-  saveCmp();
+  persistCmp();
 });
 document.getElementById('cmpRoom').addEventListener('input',()=>{
   cmp.room=document.getElementById('cmpRoom').value.trim().toUpperCase();
   cmp.peer_id=cmp.peer_id||genPeerId();
-  saveCmp();
+  persistCmp();
 });
 ['cmpName','cmpRoom'].forEach(id=>{
   document.getElementById(id).addEventListener('keydown',e=>{
