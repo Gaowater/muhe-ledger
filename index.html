@@ -251,8 +251,13 @@ svg{display:block}
 .cmp-nick{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cmp-row-vals{white-space:nowrap;font-variant-numeric:tabular-nums}
 .cmp-row-vals b{font-variant-numeric:tabular-nums}
-.cmp-refresh{margin-top:14px;height:42px;border-radius:12px;background:var(--surface-2);color:var(--text-2);font-size:14px;font-weight:500;width:100%;transition:background .15s}
+.cmp-refresh{margin-top:14px;height:42px;border-radius:12px;background:var(--surface-2);color:var(--text-2);font-size:14px;font-weight:500;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s,color .15s}
 .cmp-refresh:hover{background:var(--line)}
+.cmp-refresh:disabled{opacity:.65;cursor:default}
+.cmp-refresh .cmp-spinner{width:14px;height:14px;border-radius:50%;border:2px solid var(--text-2);border-top-color:transparent;animation:cmpSpin .7s linear infinite;flex:none}
+.cmp-refresh.done{background:var(--accent);color:var(--bg)}
+.cmp-refresh.err{background:var(--neg);color:var(--bg)}
+@keyframes cmpSpin{to{transform:rotate(360deg)}}
 .set-status{font-size:12px;color:var(--text-2);margin-top:10px;line-height:1.6;min-height:18px}
 .set-status.ok{color:var(--pos)}
 .set-status.err{color:var(--neg)}
@@ -794,11 +799,13 @@ function uploadAggregate(){
   ).catch(e=>console.warn('compare upload failed',e));
 }
 async function fetchAggregates(ym){
-  if(!cmpReady())return;
+  if(!cmpReady())return false;
   try{
-    const{data}=await sb.from('aggregates_v1').select('*').eq('room_code',cmp.room).eq('ym',ym);
+    const{data,error}=await sb.from('aggregates_v1').select('*').eq('room_code',cmp.room).eq('ym',ym);
+    if(error){console.warn('compare fetch failed',error);return false}
     cmpState.data=(data||[]).filter(r=>r.nickname).map(r=>({nickname:r.nickname,expense:+r.expense||0,income:+r.income||0,count:+r.count||0}));
-  }catch(e){console.warn('compare fetch failed',e)}
+    return true;
+  }catch(e){console.warn('compare fetch failed',e);return false}
 }
 function genRoomCode(){
   const chars='23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -880,13 +887,31 @@ document.getElementById('cmpJoin').addEventListener('click',()=>{
   if(room.length<6){document.getElementById('cmpRoom').focus();return}
   cmp={nickname:nick,room};
   saveCmp();cmpState.ym=state.ym;cmpState.data=null;
-  uploadAggregate().then(()=>fetchAggregates(cmpState.ym)).then(renderCompare);
+  renderCompare();
+  uploadAggregate().then(()=>fetchAggregates(cmpState.ym)).then(()=>renderCompare());
 });
 document.getElementById('cmpGen').addEventListener('click',()=>{document.getElementById('cmpRoom').value=genRoomCode()});
 document.getElementById('cmpEdit').addEventListener('click',()=>{cmp={room:'',nickname:''};saveCmp();cmpState.data=null;renderCompare()});
 document.getElementById('cmpPrevMonth').addEventListener('click',()=>shiftCmpMonth(-1));
 document.getElementById('cmpNextMonth').addEventListener('click',()=>shiftCmpMonth(1));
-document.getElementById('cmpRefresh').addEventListener('click',()=>{fetchAggregates(cmpState.ym).then(renderCompare)});
+document.getElementById('cmpRefresh').addEventListener('click',()=>{
+  const btn=document.getElementById('cmpRefresh');
+  if(btn.disabled)return;
+  btn.disabled=true;
+  btn.innerHTML='<span class="cmp-spinner"></span>刷新中…';
+  fetchAggregates(cmpState.ym).then(ok=>{
+    renderCompare();
+    if(ok){
+      btn.classList.add('done');
+      btn.textContent='已更新';
+      setTimeout(()=>{btn.classList.remove('done');btn.disabled=false;btn.textContent='刷新数据'},1500);
+    }else{
+      btn.classList.add('err');
+      btn.textContent='刷新失败';
+      setTimeout(()=>{btn.classList.remove('err');btn.disabled=false;btn.textContent='刷新数据'},1500);
+    }
+  });
+});
 document.getElementById('cmpList').addEventListener('click',e=>{const row=e.target.closest('.cmp-row');if(row){cmpState.peer=row.dataset.nick;renderCompare()}});
 document.getElementById('cmpList').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList.contains('cmp-row')){cmpState.peer=e.target.dataset.nick;renderCompare()}});
 
