@@ -891,6 +891,22 @@ document.getElementById('cmpJoin').addEventListener('click',()=>{
 });
 document.getElementById('cmpGen').addEventListener('click',()=>{document.getElementById('cmpRoom').value=genRoomCode()});
 document.getElementById('cmpEdit').addEventListener('click',()=>{cmp={room:'',nickname:'',peer_id:cmp.peer_id||genPeerId()};saveCmp();cmpState.data=null;cmpState.fetchErr='';renderCompare()});
+/* 昵称/房间号输入即保存（刷新不丢）+ 回车直接加入 */
+document.getElementById('cmpName').addEventListener('input',()=>{
+  cmp.nickname=document.getElementById('cmpName').value.trim();
+  cmp.peer_id=cmp.peer_id||genPeerId();
+  saveCmp();
+});
+document.getElementById('cmpRoom').addEventListener('input',()=>{
+  cmp.room=document.getElementById('cmpRoom').value.trim().toUpperCase();
+  cmp.peer_id=cmp.peer_id||genPeerId();
+  saveCmp();
+});
+['cmpName','cmpRoom'].forEach(id=>{
+  document.getElementById(id).addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();document.getElementById('cmpJoin').click()}
+  });
+});
 document.getElementById('cmpPrevMonth').addEventListener('click',()=>shiftCmpMonth(-1));
 document.getElementById('cmpNextMonth').addEventListener('click',()=>shiftCmpMonth(1));
 document.getElementById('cmpRefresh').addEventListener('click',()=>{
