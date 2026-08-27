@@ -775,31 +775,47 @@ async function sync(){
   }catch(e){console.warn('sync merge failed',e)}
 }
 
-/* 比账（房间聚合对比） */
+/* 比账（房间聚合对比）
+   状态三层持久化，防刷新丢失：
+     ① localStorage（主存储）
+     ② cookie（无痕 / 第三方隔离环境下 localStorage 被静默阻止时的兜底）
+     ③ URL hash（iframe 预览等连 cookie 都受限时的最后手段）
+   恢复优先级：localStorage > cookie > hash（hash 仅非空值才覆盖，避免空串清掉已恢复的数据） */
 const cmpKey='ledger.compare.v1';
+const cmpCookieKey='ledger_cmp';
 let cmp=null;
 try{cmp=JSON.parse(localStorage.getItem(cmpKey)||'null')}catch(e){cmp=null}
+if(!cmp||typeof cmp!=='object'){
+  try{
+    const m=document.cookie.match(new RegExp('(?:^|;\\s*)'+cmpCookieKey+'=([^;]*)'));
+    if(m){const p=JSON.parse(decodeURIComponent(m[1]));if(p&&typeof p==='object')cmp=p}
+  }catch(e){cmp=null}
+}
 if(!cmp||typeof cmp!=='object')cmp={room:'',nickname:'',peer_id:''};
 if(!cmp.peer_id)cmp.peer_id=genPeerId();
 const cmpState={ym:todayISO.slice(0,7),peer:null,data:null,fetchErr:''};
 function saveCmp(){localStorage.setItem(cmpKey,JSON.stringify(cmp))}
-/* localStorage 兜底：iframe 预览/隐私模式下 setItem 会被浏览器静默阻止，
-   改用 URL hash 同步一份（刷新必然保留 hash），加载时从中恢复 */
+function saveCmpCookie(){
+  try{document.cookie=cmpCookieKey+'='+encodeURIComponent(JSON.stringify(cmp))+';path=/;max-age=31536000'}catch(e){}
+}
 function persistCmp(){
   try{saveCmp()}catch(e){}
+  saveCmpCookie();
   try{
     const q=new URLSearchParams(location.hash.replace(/^#/,''));
-    q.set('nick',cmp.nickname||'');q.set('room',cmp.room||'');
+    q.set('nick',cmp.nickname||'');q.set('room',cmp.room||'');q.set('peer',cmp.peer_id||'');
     const h='#'+q.toString();
     if(location.hash!==h)history.replaceState(null,'',h);
   }catch(e){}
 }
 try{
   const q=new URLSearchParams(location.hash.replace(/^#/,''));
-  const n=q.get('nick'),r=q.get('room');
-  if(n!==null&&n!==cmp.nickname)cmp.nickname=n;
-  if(r!==null&&r!==cmp.room)cmp.room=r;
+  const n=q.get('nick'),r=q.get('room'),p=q.get('peer');
+  if(n&&n!==cmp.nickname)cmp.nickname=n;
+  if(r&&r!==cmp.room)cmp.room=r;
+  if(p&&p!==cmp.peer_id)cmp.peer_id=p;
   try{saveCmp()}catch(e){}
+  saveCmpCookie();
 }catch(e){}
 function cmpReady(){return sbReady()&&cmp.room&&cmp.nickname}
 function aggFor(ym){
@@ -1156,11 +1172,26 @@ $('budgetClear').addEventListener('click',()=>{
 $('exportBtn').addEventListener('click',()=>{
   const head='日期,类型,分类,金额,备注';
   const rows=entries.map(e=>`${e.date},${e.type==='expense'?'支出':'收入'},${catOf(e.cat,e.type).name},${e.amount},${(e.note||'').replace(/,/g,'，')}`).join('\n');
-  const blob=new Blob(['\ufeff'+head+'\n'+rows],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=`账本_${state.ym}.csv`;
-  a.click();URL.revokeObjectURL(a.href);
+  const csv='\ufeff'+head+'\n'+rows;
+  const filename=`账本_${state.ym}.csv`;
+  // ① APK WebView：调原生下载 bridge（直接写入系统「下载」目录），原生不支持则静默失败
+  try{
+    if(window.Android&&typeof window.Android.downloadCSV==='function'){
+      window.Android.downloadCSV(filename,csv);
+      return;
+    }
+  }catch(e){}
+  // ② 浏览器：标准下载（a 挂到 DOM + 延迟回收 URL，兼容更多 WebView/移动浏览器）
+  try{
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=filename;
+    a.style.display='none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url)},1000);
+  }catch(e){console.warn('export failed',e)}
 });
 
 /* 支出趋势折线 */
