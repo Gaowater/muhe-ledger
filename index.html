@@ -183,6 +183,43 @@ svg{display:block}
 .date-row{display:flex;align-items:center;gap:10px;margin-top:10px}
 .date-row label{font-size:14px;color:var(--text-2);flex:none}
 .date-input{flex:1;height:44px;background:var(--surface-2);border:none;border-radius:12px;padding:0 14px;font-size:15px;font-family:inherit;color:var(--text);outline:none}
+/* 日期选择：页面内月历（WebView 的系统 date picker 可能不弹） */
+.date-pick{
+  flex:1;height:44px;background:var(--surface-2);border:none;border-radius:12px;padding:0 14px;
+  font-size:15px;font-family:inherit;color:var(--text);outline:none;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  transition:background .15s var(--ease-quart);
+}
+.date-pick span{font-variant-numeric:var(--num)}
+.date-pick:active{background:var(--line)}
+.date-pick svg{color:var(--text-2);flex:none}
+.cal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:60;animation:fadeIn .2s ease both}
+.cal-sheet{
+  position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:61;
+  width:min(340px,calc(100vw - 40px));max-width:340px;
+  background:var(--surface);border-radius:24px;padding:18px;
+  box-shadow:0 24px 60px rgba(0,0,0,.24);animation:sheetPop .3s var(--ease-expo) both;
+}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-title{font-size:16px;font-weight:600;font-variant-numeric:var(--num)}
+.cal-week,.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-week{margin-bottom:4px}
+.cal-week span{text-align:center;font-size:11px;color:var(--text-3);padding:4px 0}
+.cal-day{
+  height:38px;border-radius:19px;display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-variant-numeric:var(--num);color:var(--text);position:relative;
+  transition:background .12s var(--ease-quart),color .12s;
+}
+.cal-day.empty{visibility:hidden}
+.cal-day.today{font-weight:700}
+.cal-day.today::after{content:'';position:absolute;bottom:5px;width:4px;height:4px;border-radius:2px;background:var(--accent)}
+.cal-day.sel{background:var(--accent);color:#fff;font-weight:600}
+.cal-day.sel.today::after{background:#fff}
+.cal-day:active{background:var(--surface-2)}
+.cal-actions{display:flex;gap:10px;margin-top:16px}
+.cal-actions button{flex:1;height:42px;border-radius:14px;font-size:15px;font-weight:500;background:var(--surface-2);color:var(--text-2);transition:transform .12s var(--ease-quart)}
+.cal-actions button:active{transform:scale(.97)}
+.cal-actions .cal-done{background:var(--text);color:var(--bg)}
 /* 删除按钮 */
 .del-btn{margin-top:10px;height:46px;padding:0 18px;border-radius:14px;background:var(--surface-2);color:var(--neg);font-size:15px;font-weight:500;line-height:1;white-space:nowrap;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
 .del-btn:active{background:var(--neg);color:var(--surface)}
@@ -515,8 +552,12 @@ svg{display:block}
         </div>
         <input class="note-input" id="noteInput" type="text" maxlength="30" placeholder="备注（选填）" autocomplete="off">
         <div class="date-row">
-          <label for="dateInput">日期</label>
-          <input class="date-input" id="dateInput" type="date" aria-label="日期">
+          <label>日期</label>
+          <button type="button" class="date-pick" id="datePick" aria-label="选择日期">
+            <span id="datePickText">—</span>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3.5v3M16 3.5v3"/></svg>
+          </button>
+          <input type="date" id="dateInput" hidden aria-hidden="true" tabindex="-1">
         </div>
       </div>
     </div>
@@ -533,6 +574,21 @@ svg{display:block}
       <button class="del-btn" id="delBtn" hidden>删除</button>
       <button class="save-btn" id="saveBtn" disabled>保存</button>
     </div>
+  </div>
+</div>
+
+<div class="cal-backdrop" id="calBackdrop" hidden></div>
+<div class="cal-sheet" id="dateCal" role="dialog" aria-modal="true" aria-label="选择日期" hidden>
+  <div class="cal-head">
+    <button class="icon-btn" id="calPrev" aria-label="上个月"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg></button>
+    <span class="cal-title" id="calTitle">—</span>
+    <button class="icon-btn" id="calNext" aria-label="下个月"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg></button>
+  </div>
+  <div class="cal-week" aria-hidden="true"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+  <div class="cal-grid" id="calGrid"></div>
+  <div class="cal-actions">
+    <button id="calToday">今天</button>
+    <button class="cal-done" id="calDone">完成</button>
   </div>
 </div>
 
@@ -1394,13 +1450,65 @@ function openSheet(editId){
     :{type:'expense',cat:'food',amount:'',note:'',date:todayISO,editId:null};
   $('noteInput').value=state.sheet.note;
   $('dateInput').value=state.sheet.date;
+  $('datePickText').textContent=state.sheet.date;
   $('delBtn').hidden=!e0;
   renderQuick();
   refreshSheet();
   sheet.hidden=false;backdrop.hidden=false;
   document.body.style.overflow='hidden';
 }
-function closeSheet(){sheet.hidden=true;backdrop.hidden=true;document.body.style.overflow=''}
+function closeSheet(){closeCal();sheet.hidden=true;backdrop.hidden=true;document.body.style.overflow=''}
+/* 日期选择：页面内月历（WebView 的系统 date picker 在部分环境不弹，改用自绘） */
+const calState={y:0,m:0};
+function setSheetDate(iso){
+  state.sheet.date=iso;
+  $('dateInput').value=iso;
+  $('datePickText').textContent=iso;
+}
+function curSheetDate(){return $('dateInput').value||state.sheet.date||todayISO}
+function renderCal(){
+  const{y,m}=calState;
+  $('calTitle').textContent=`${y}年${m+1}月`;
+  const sel=curSheetDate();
+  const first=new Date(y,m,1).getDay();
+  const days=new Date(y,m+1,0).getDate();
+  let html='';
+  for(let i=0;i<first;i++)html+='<div class="cal-day empty"></div>';
+  for(let d=1;d<=days;d++){
+    const iso=`${y}-${pad(m+1)}-${pad(d)}`;
+    const cls=['cal-day',iso===todayISO?'today':'',iso===sel?'sel':''].filter(Boolean).join(' ');
+    html+=`<div class="${cls}" data-d="${iso}" role="button" tabindex="0" aria-label="${y}年${m+1}月${d}日">${d}</div>`;
+  }
+  $('calGrid').innerHTML=html;
+}
+function openCal(){
+  const p=curSheetDate().split('-');
+  calState.y=+p[0];calState.m=+p[1]-1;
+  renderCal();
+  $('dateCal').hidden=false;$('calBackdrop').hidden=false;
+}
+function closeCal(){$('dateCal').hidden=true;$('calBackdrop').hidden=true}
+function shiftCalMonth(d){
+  calState.m+=d;
+  if(calState.m<0){calState.m=11;calState.y--}
+  else if(calState.m>11){calState.m=0;calState.y++}
+  renderCal();
+}
+$('datePick').addEventListener('click',openCal);
+$('calBackdrop').addEventListener('click',closeCal);
+$('calDone').addEventListener('click',closeCal);
+$('calPrev').addEventListener('click',()=>shiftCalMonth(-1));
+$('calNext').addEventListener('click',()=>shiftCalMonth(1));
+$('calToday').addEventListener('click',()=>{setSheetDate(todayISO);closeCal()});
+$('calGrid').addEventListener('click',e=>{
+  const d=e.target.closest('.cal-day');
+  if(d&&d.dataset.d){setSheetDate(d.dataset.d);closeCal()}
+});
+$('calGrid').addEventListener('keydown',e=>{
+  if(e.key!=='Enter'&&e.key!==' ')return;
+  const d=e.target.closest('.cal-day');
+  if(d&&d.dataset.d){e.preventDefault();setSheetDate(d.dataset.d);closeCal()}
+});
 $('addBtn').addEventListener('click',()=>openSheet());
 $('closeSheet').addEventListener('click',closeSheet);
 backdrop.addEventListener('click',closeSheet);
@@ -1448,6 +1556,11 @@ bindKeypad('#keypad .key, #keypadDesk .key',pressKey);
 // 物理键盘输入金额（数字键盘 / 顶部数字键）
 document.addEventListener('keydown',e=>{
   if($('sheet').hidden)return;
+  // 月历打开时：Esc 只关月历，其余按键不参与金额输入
+  if(!$('dateCal').hidden){
+    if(e.key==='Escape'){e.preventDefault();closeCal()}
+    return;
+  }
   const tag=document.activeElement&&document.activeElement.tagName;
   if(tag==='INPUT'||tag==='TEXTAREA')return;
   if(/^[0-9]$/.test(e.key)){pressKey(e.key);e.preventDefault()}
@@ -1573,6 +1686,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     if(!$('settingsSheet').hidden)closeSettings();
     else if(!$('budgetSheet').hidden)closeBudgetSheet();
+    else if(!$('dateCal').hidden)closeCal();
     else if(!sheet.hidden)closeSheet();
   }
 });
@@ -1580,6 +1694,7 @@ document.addEventListener('keydown',e=>{
 window.muheBack=function(){
   if(!$('settingsSheet').hidden){closeSettings();return true}
   if(!$('budgetSheet').hidden){closeBudgetSheet();return true}
+  if(!$('dateCal').hidden){closeCal();return true}
   if(!sheet.hidden){closeSheet();return true}
   return false;
 };
