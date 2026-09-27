@@ -277,7 +277,10 @@ svg{display:block}
 .cmp-gen{display:block;text-align:center;margin-top:14px;font-size:13px;color:var(--accent)}
 .cmp-card .save-btn{width:100%}
 .cmp-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
-.cmp-edit{font-size:13px;color:var(--text-2);padding:7px 12px;border-radius:10px;background:var(--surface-2);white-space:nowrap}
+.cmp-actions{display:flex;align-items:center;gap:8px;flex:none}
+.cmp-btn{font-size:13px;color:var(--text-2);padding:7px 12px;border-radius:10px;background:var(--surface-2);white-space:nowrap;transition:background .15s,color .15s}
+.cmp-btn:hover{background:var(--line);color:var(--text)}
+.cmp-btn:active{transform:scale(.96)}
 .cmp-duel{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
 .cmp-duel-empty{grid-column:1/-1;background:var(--surface);border:1px dashed var(--line);border-radius:20px;padding:30px 20px;text-align:center;color:var(--text-2);font-size:13px;line-height:1.7}
 .cmp-card-name{font-size:16px;font-weight:700;text-align:center}
@@ -305,6 +308,22 @@ svg{display:block}
 .cmp-refresh.done{background:var(--accent);color:var(--bg)}
 .cmp-refresh.err{background:var(--neg);color:var(--bg)}
 @keyframes cmpSpin{to{transform:rotate(360deg)}}
+/* 比账弹窗（换房间二次确认 / 改昵称） */
+.cmp-modal{position:fixed;z-index:70;left:50%;top:50%;transform:translate(-50%,-50%);width:min(340px,calc(100vw - 48px));background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:24px 22px 18px;box-shadow:0 12px 40px rgba(0,0,0,.18);animation:cmpModalIn .22s var(--ease-expo) both}
+@keyframes cmpModalIn{from{opacity:0;transform:translate(-50%,-46%) scale(.97)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+.cmp-modal-title{font-size:16px;font-weight:600;text-align:center}
+.cmp-modal-desc{font-size:13px;color:var(--text-2);line-height:1.7;text-align:center;margin-top:10px}
+.cmp-modal-desc b{color:var(--text);font-weight:600}
+.cmp-modal-btns{display:flex;gap:10px;margin-top:20px}
+.cmp-modal-btns button{flex:1;height:44px;border-radius:13px;font-size:15px;font-weight:500;line-height:1;transition:background .15s,color .15s,transform .12s var(--ease-quart)}
+.cmp-modal-btns button:active{transform:scale(.97)}
+.cmp-modal-cancel{background:var(--surface-2);color:var(--text-2)}
+.cmp-modal-cancel:hover{background:var(--line);color:var(--text)}
+.cmp-modal-ok{background:var(--text);color:var(--bg)}
+.cmp-modal-ok.danger{background:var(--neg);color:#fff}
+.cmp-modal-ok:disabled{opacity:.35;cursor:default}
+.cmp-modal .set-label{margin-top:18px}
+.cmp-modal .set-input{text-align:center}
 .set-status{font-size:12px;color:var(--text-2);margin-top:10px;line-height:1.6;min-height:18px}
 .set-status.ok{color:var(--pos)}
 .set-status.err{color:var(--neg)}
@@ -514,7 +533,10 @@ svg{display:block}
             <span class="month-label num" id="cmpMonthLabel">—</span>
             <button class="icon-btn" id="cmpNextMonth" aria-label="下个月"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg></button>
           </div>
-          <button class="cmp-edit" id="cmpEdit">换房间 / 改昵称</button>
+          <div class="cmp-actions">
+            <button class="cmp-btn" id="cmpRoomBtn">换房间</button>
+            <button class="cmp-btn" id="cmpNickBtn">改昵称</button>
+          </div>
         </div>
         <div class="cmp-duel" id="cmpDuel"></div>
         <p class="cmp-list-title">房间月榜</p>
@@ -696,6 +718,26 @@ svg{display:block}
   <div class="about-ver" id="aboutVer">正在读取版本…</div>
   <div class="about-desc">本地优先、云端自动同步的个人记账应用。<br>数据存在你自己的 Supabase，仅通过同步口令互通。</div>
   <button class="save-btn" id="aboutClose" style="width:100%;margin-top:18px">知道了</button>
+</div>
+
+<div class="backdrop" id="cmpModalBackdrop" hidden></div>
+<div class="cmp-modal" id="cmpRoomConfirm" role="dialog" aria-modal="true" aria-labelledby="cmpRoomConfirmTitle" hidden>
+  <p class="cmp-modal-title" id="cmpRoomConfirmTitle">确认换房间？</p>
+  <p class="cmp-modal-desc" id="cmpRoomConfirmDesc"></p>
+  <div class="cmp-modal-btns">
+    <button type="button" class="cmp-modal-cancel" id="cmpRoomCancel">取消</button>
+    <button type="button" class="cmp-modal-ok danger" id="cmpRoomOk">确认换房间</button>
+  </div>
+</div>
+
+<div class="cmp-modal" id="cmpNickModal" role="dialog" aria-modal="true" aria-labelledby="cmpNickModalTitle" hidden>
+  <p class="cmp-modal-title" id="cmpNickModalTitle">修改昵称</p>
+  <label class="set-label" for="cmpNickInput">新昵称</label>
+  <input class="set-input" id="cmpNickInput" type="text" placeholder="例如：牧河" autocomplete="off" maxlength="12">
+  <div class="cmp-modal-btns">
+    <button type="button" class="cmp-modal-cancel" id="cmpNickCancel">取消</button>
+    <button type="button" class="cmp-modal-ok" id="cmpNickOk">保存</button>
+  </div>
 </div>
 
 <script>
@@ -939,6 +981,45 @@ function genRoomCode(){
   let s='';for(let i=0;i<6;i++)s+=chars[Math.floor(Math.random()*chars.length)];
   return s;
 }
+/* ==== 比账：换房间 / 改昵称 两个独立入口 ==== */
+function cmpRoomConfirmOpen(){return !$('cmpRoomConfirm').hidden}
+function cmpNickOpen(){return !$('cmpNickModal').hidden}
+function anyCmpModalOpen(){return cmpRoomConfirmOpen()||cmpNickOpen()}
+function showCmpModal(el){$('cmpModalBackdrop').hidden=false;el.hidden=false}
+function closeCmpRoomConfirm(){$('cmpRoomConfirm').hidden=true;if(!cmpNickOpen())$('cmpModalBackdrop').hidden=true}
+function closeCmpNick(){$('cmpNickModal').hidden=true;if(!cmpRoomConfirmOpen())$('cmpModalBackdrop').hidden=true}
+function closeCmpModals(){closeCmpRoomConfirm();closeCmpNick()}
+/* 换房间：弹二次确认，取消则零副作用 */
+function openCmpRoomConfirm(){
+  $('cmpRoomConfirmDesc').innerHTML=`换房间后会离开当前比账码 <b>${cmp.room||'——'}</b>，需要重新创建或输入新的比账码才能继续和 TA 比账。你的昵称和历史账单不受影响。`;
+  showCmpModal($('cmpRoomConfirm'));
+}
+/* 仅在用户点「确认换房间」后调用：清房间、保留昵称与 peer_id */
+function doChangeRoom(){
+  cmp={room:'',nickname:cmp.nickname,peer_id:cmp.peer_id||genPeerId()};
+  persistCmp();
+  cmpState.data=null;cmpState.fetchErr='';cmpState.peer=null;
+  renderCompare();
+}
+/* 改昵称：直接进入可编辑状态 */
+function openCmpNick(){
+  const input=$('cmpNickInput');
+  input.value=cmp.nickname||'';
+  showCmpModal($('cmpNickModal'));
+  setTimeout(()=>{try{input.focus();input.select()}catch(e){}},60);
+}
+function confirmCmpNick(){
+  const input=$('cmpNickInput');
+  const name=input.value.trim();
+  if(!name){input.focus();return}
+  if(name===cmp.nickname){closeCmpNick();return}
+  cmp.nickname=name;
+  cmp.peer_id=cmp.peer_id||genPeerId();
+  persistCmp();
+  closeCmpNick();
+  uploadAggregate(cmpState.ym).then(()=>fetchAggregates(cmpState.ym)).then(()=>renderCompare());
+  renderCompare();
+}
 function renderCompare(){
   const empty=document.getElementById('cmpEmpty'),ready=document.getElementById('cmpReady');
   if(!cmpReady()){
@@ -1010,7 +1091,19 @@ document.getElementById('cmpJoin').addEventListener('click',()=>{
   uploadAggregate(cmpState.ym).then(()=>fetchAggregates(cmpState.ym)).then(()=>renderCompare());
 });
 document.getElementById('cmpGen').addEventListener('click',()=>{document.getElementById('cmpRoom').value=genRoomCode()});
-document.getElementById('cmpEdit').addEventListener('click',()=>{cmp={room:'',nickname:'',peer_id:cmp.peer_id||genPeerId()};persistCmp();cmpState.data=null;cmpState.fetchErr='';renderCompare()});
+/* 换房间：先二次确认，确认后才清空房间（昵称与 peer_id 保持不变，换房间不换身份） */
+document.getElementById('cmpRoomBtn').addEventListener('click',openCmpRoomConfirm);
+/* 改昵称：直接进入编辑弹窗，无需二次确认 */
+document.getElementById('cmpNickBtn').addEventListener('click',openCmpNick);
+document.getElementById('cmpRoomCancel').addEventListener('click',closeCmpRoomConfirm);
+document.getElementById('cmpRoomOk').addEventListener('click',()=>{closeCmpRoomConfirm();doChangeRoom()});
+document.getElementById('cmpNickCancel').addEventListener('click',closeCmpNick);
+document.getElementById('cmpNickOk').addEventListener('click',confirmCmpNick);
+document.getElementById('cmpNickInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();confirmCmpNick()}
+});
+/* 点遮罩（弹窗外的空白区）关闭比账弹窗；点弹窗内部不关闭 */
+$('cmpModalBackdrop').addEventListener('click',closeCmpModals);
 /* 昵称/房间号输入即保存（刷新不丢）+ 回车直接加入 */
 document.getElementById('cmpName').addEventListener('input',()=>{
   cmp.nickname=document.getElementById('cmpName').value.trim();
@@ -1747,7 +1840,8 @@ if(sbReady())sync();
 
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
-    if(!$('aboutCard').hidden)closeAbout();
+    if(anyCmpModalOpen())closeCmpModals();
+    else if(!$('aboutCard').hidden)closeAbout();
     else if(!$('settingsSheet').hidden)closeSettings();
     else if(!$('budgetSheet').hidden)closeBudgetSheet();
     else if(!$('dateCal').hidden)closeCal();
@@ -1756,6 +1850,7 @@ document.addEventListener('keydown',e=>{
 });
 /* 系统返回键（App bridge）：优先关闭当前打开的界面，全部关闭后返回 false 让 App 退出 */
 window.muheBack=function(){
+  if(anyCmpModalOpen()){closeCmpModals();return true}
   if(!$('aboutCard').hidden){closeAbout();return true}
   if(!$('settingsSheet').hidden){closeSettings();return true}
   if(!$('budgetSheet').hidden){closeBudgetSheet();return true}
