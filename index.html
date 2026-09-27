@@ -1103,7 +1103,7 @@ document.getElementById('cmpNickInput').addEventListener('keydown',e=>{
   if(e.key==='Enter'){e.preventDefault();confirmCmpNick()}
 });
 /* 点遮罩（弹窗外的空白区）关闭比账弹窗；点弹窗内部不关闭 */
-$('cmpModalBackdrop').addEventListener('click',closeCmpModals);
+document.getElementById('cmpModalBackdrop').addEventListener('click',closeCmpModals);
 /* 昵称/房间号输入即保存（刷新不丢）+ 回车直接加入 */
 document.getElementById('cmpName').addEventListener('input',()=>{
   cmp.nickname=document.getElementById('cmpName').value.trim();
