@@ -18,6 +18,9 @@
   --ease-quart:cubic-bezier(.25,1,.5,1);
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
   --num:tabular-nums;
+  /* 固定顶部栏高度（含刘海安全区）。顶部栏与 .app 的顶部留白共用此值，
+     改一处即可，避免两者各写一份而失同步。 */
+  --topbar-h:56px;
 }
 [data-theme="dark"]{
   --bg:#000000; --surface:#1c1c1e; --surface-2:#2c2c2e;
@@ -32,7 +35,9 @@ html{scroll-behavior:smooth}
 body{
   font-family:var(--font);background:var(--bg);color:var(--text);
   min-height:100vh;line-height:1.5;
-  padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);
+  /* 顶部安全区已由固定顶部栏自身承担（padding-top:env(...)），
+     此处不能再加，否则刘海屏上会多出一段空白。底部安全区保留。 */
+  padding-bottom:env(safe-area-inset-bottom);
   transition:background .3s var(--ease-quart),color .3s var(--ease-quart);
 }
 button{font-family:inherit;border:none;background:none;color:inherit;cursor:pointer;touch-action:manipulation}
@@ -40,9 +45,24 @@ button{font-family:inherit;border:none;background:none;color:inherit;cursor:poin
 svg{display:block}
 .num{font-variant-numeric:var(--num)}
 
-.app{max-width:1120px;margin:0 auto;padding:0 20px 96px}
+/* .app 顶部留白 = 固定顶部栏高度 + 刘海安全区。原 .main{margin-top:12px}
+   继续承担内容与顶部栏之间的 12px 呼吸感，此处不再重复叠加。 */
+.app{max-width:1120px;margin:0 auto;padding:calc(var(--topbar-h) + env(safe-area-inset-top)) 20px 96px}
 
-.topbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:18px;height:56px;position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+/* 顶部栏：三列 grid —— 品牌 / 月份导航 / 操作图标同行。
+   position:fixed 彻底冻结：脱离文档流，滚动时位置绝对不动（不随内容滚动、
+   不受父容器与 transform 影响）。代价是必须由 .app 的 padding-top 补偿高度。
+   height 用 calc 叠加安全区：因为全局 box-sizing:border-box，
+   若只写 height:56px，刘海屏的安全区 padding 会从 56px 里扣，内容被压扁。 */
+.topbar{
+  position:fixed;left:0;right:0;top:0;z-index:20;
+  height:calc(var(--topbar-h) + env(safe-area-inset-top));
+  padding:env(safe-area-inset-top) 20px 0;
+  display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:18px;
+  max-width:1120px;margin:0 auto;
+  background:color-mix(in srgb,var(--bg) 82%,transparent);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+}
 .brand{font-size:17px;font-weight:600;letter-spacing:.02em;justify-self:start}
 .topbar-right{display:flex;align-items:center;gap:4px;justify-self:end}
 .icon-btn{width:40px;height:40px;border-radius:20px;display:flex;align-items:center;justify-content:center;color:var(--text-2);transition:background .15s var(--ease-quart),color .15s}
@@ -324,9 +344,32 @@ svg{display:block}
 .cmp-modal-ok:disabled{opacity:.35;cursor:default}
 .cmp-modal .set-label{margin-top:18px}
 .cmp-modal .set-input{text-align:center}
+/* 轻提示（保存成功等）/ 二次确认弹窗：复用 .cmp-modal 外观，z-index 抬到 80
+   以免被同为 z-index:70 的比账弹窗按 DOM 顺序压在下面 */
+#setConfirm,#setToast{z-index:80}
+#setToast{width:min(260px,calc(100vw - 80px));padding:26px 22px 22px;text-align:center;pointer-events:none}
+#setToast .cmp-modal-desc{margin-top:8px}
+#setToast .cmp-modal-desc:empty{display:none}
 .set-status{font-size:12px;color:var(--text-2);margin-top:10px;line-height:1.6;min-height:18px}
 .set-status.ok{color:var(--pos)}
 .set-status.err{color:var(--neg)}
+/* 同步设置底部操作区
+   原实现为「.actions-row（flex 1:2）+ 一个带内联 margin-top:10px 的全宽 .del-btn」，
+   三个按钮分属两套尺寸体系（46px / 52px）、两种底部间距（10px / 14px），
+   视觉上不成组。此处收敛为单一容器：主按钮 52px 全宽主色，
+   危险区 2 列 grid 一律 46px，断开同步与清空所有数据同宽等高。
+   断开同步 hidden 时清空所有数据自动跨满两列，避免留下空列造成"歪"的观感。 */
+.set-actions{margin-top:14px;display:flex;flex-direction:column;gap:10px}
+.set-actions .save-btn{margin-top:0;width:100%}
+.set-danger{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.set-danger-btn{height:46px;border-radius:14px;font-size:15px;font-weight:500;line-height:1;
+  white-space:nowrap;display:flex;align-items:center;justify-content:center;
+  background:var(--surface-2);color:var(--text-2);
+  transition:background .15s,color .15s,transform .12s var(--ease-quart)}
+.set-danger-btn.danger{background:color-mix(in srgb,var(--neg) 8%,transparent);color:var(--neg)}
+.set-danger-btn:active{transform:scale(.97)}
+.set-danger-btn.danger:active{background:var(--neg);color:#fff}
+.set-danger-btn.last{grid-column:1/-1}
 
 /* 记一笔 */
 .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:40;animation:fadeIn .2s ease both}
@@ -391,9 +434,12 @@ svg{display:block}
 .save-btn:disabled{opacity:.35;cursor:default}
 .save-btn:not(:disabled):active{transform:scale(.98)}
 
-/* 窄屏：顶部导航居中但收紧间距，避免溢出 */
+/* 窄屏：三列 grid 下收紧间距与控件尺寸，避免品牌/月份/图标相互挤压。
+   注意 .app 的横向 padding 必须与 .topbar 保持一致（同为 12px），
+   否则固定顶部栏与页面内容左右边缘会错位。 */
 @media (max-width:640px){
-  .topbar{gap:6px;padding:0 8px}
+  .app{padding-left:12px;padding-right:12px}
+  .topbar{padding-left:12px;padding-right:12px;gap:6px}
   .topbar .brand{font-size:14px}
   .month-label{min-width:76px;font-size:13px}
   .topbar .icon-btn,.month-nav .icon-btn{width:32px;height:32px}
@@ -403,7 +449,9 @@ svg{display:block}
 }
 
 @media (min-width:900px){
-  .app{padding:0 32px 48px}
+  /* 桌面端只改横向与底部留白，顶部固定栏的补偿必须保留 */
+  .app{padding-left:32px;padding-right:32px;padding-bottom:48px}
+  .topbar{padding-left:32px;padding-right:32px}
   .tabbar{display:none}
   #viewStats[hidden]{display:block!important}
   #viewCompare[hidden]{display:block!important}
@@ -702,14 +750,13 @@ svg{display:block}
     </div>
     <p class="set-status" id="setStatus"></p>
   </div>
-  <div class="sheet-fixed">
-    <div class="actions-row">
-      <button class="del-btn" id="disconnectBtn" hidden>断开同步</button>
-      <button class="save-btn" id="syncSaveBtn">保存并同步</button>
+  <div class="sheet-fixed set-actions">
+    <button class="save-btn" id="syncSaveBtn">保存并同步</button>
+    <div class="set-danger">
+      <button class="set-danger-btn danger" id="disconnectBtn" hidden>断开同步</button>
+      <button class="set-danger-btn danger last" id="wipeBtn">清空所有数据</button>
     </div>
-    <button class="del-btn" id="wipeBtn" style="margin-top:10px;width:100%;background:color-mix(in srgb,var(--neg) 8%,transparent)">清空所有数据</button>
   </div>
-</div>
 
 <div class="backdrop" id="aboutBackdrop" hidden></div>
 <div class="about-card" id="aboutCard" role="dialog" aria-modal="true" aria-label="关于两记" hidden>
@@ -727,6 +774,20 @@ svg{display:block}
   <div class="cmp-modal-btns">
     <button type="button" class="cmp-modal-cancel" id="cmpRoomCancel">取消</button>
     <button type="button" class="cmp-modal-ok danger" id="cmpRoomOk">确认换房间</button>
+  </div>
+</div>
+
+<div class="cmp-modal" id="setToast" role="status" aria-live="polite" hidden>
+  <p class="cmp-modal-title" id="setToastTitle">已成功</p>
+  <p class="cmp-modal-desc" id="setToastDesc"></p>
+</div>
+
+<div class="cmp-modal" id="setConfirm" role="dialog" aria-modal="true" aria-labelledby="setConfirmTitle" hidden>
+  <p class="cmp-modal-title" id="setConfirmTitle">确认</p>
+  <p class="cmp-modal-desc" id="setConfirmDesc"></p>
+  <div class="cmp-modal-btns">
+    <button type="button" class="cmp-modal-cancel" id="setConfirmCancel">取消</button>
+    <button type="button" class="cmp-modal-ok" id="setConfirmOk">确认</button>
   </div>
 </div>
 
@@ -981,14 +1042,22 @@ function genRoomCode(){
   let s='';for(let i=0;i<6;i++)s+=chars[Math.floor(Math.random()*chars.length)];
   return s;
 }
-/* ==== 比账：换房间 / 改昵称 两个独立入口 ==== */
+/* ==== 弹窗状态判定（比账两窗 + 设置的确认/提示两窗）====
+   四个判定函数集中在此处最早声明：syncCmpBackdrop / closeCmpModals 会调用
+   setConfirmOpen / setToastOpen，若它们声明在后，任何早于其声明位置的调用
+   都会抛 ReferenceError。集中前置可彻底消除这类顺序耦合。 */
 function cmpRoomConfirmOpen(){return !$('cmpRoomConfirm').hidden}
 function cmpNickOpen(){return !$('cmpNickModal').hidden}
+function setConfirmOpen(){return !$('setConfirm').hidden}
+function setToastOpen(){return !$('setToast').hidden}
 function anyCmpModalOpen(){return cmpRoomConfirmOpen()||cmpNickOpen()}
+/* 遮罩 #cmpModalBackdrop 由四个弹窗共用，任一仍打开时都不得收起遮罩 */
+function anySharedModalOpen(){return cmpRoomConfirmOpen()||cmpNickOpen()||setConfirmOpen()||setToastOpen()}
+function syncCmpBackdrop(){$('cmpModalBackdrop').hidden=!anySharedModalOpen()}
 function showCmpModal(el){$('cmpModalBackdrop').hidden=false;el.hidden=false}
-function closeCmpRoomConfirm(){$('cmpRoomConfirm').hidden=true;if(!cmpNickOpen())$('cmpModalBackdrop').hidden=true}
-function closeCmpNick(){$('cmpNickModal').hidden=true;if(!cmpRoomConfirmOpen())$('cmpModalBackdrop').hidden=true}
-function closeCmpModals(){closeCmpRoomConfirm();closeCmpNick()}
+function closeCmpRoomConfirm(){$('cmpRoomConfirm').hidden=true;syncCmpBackdrop()}
+function closeCmpNick(){$('cmpNickModal').hidden=true;syncCmpBackdrop()}
+function closeCmpModals(){closeCmpRoomConfirm();closeCmpNick();closeSetConfirm();closeSetToast()}
 /* 换房间：弹二次确认，取消则零副作用 */
 function openCmpRoomConfirm(){
   $('cmpRoomConfirmDesc').innerHTML=`换房间后会离开当前比账码 <b>${cmp.room||'——'}</b>，需要重新创建或输入新的比账码才能继续和 TA 比账。你的昵称和历史账单不受影响。`;
@@ -1769,6 +1838,40 @@ function closeSettings(){$('settingsSheet').hidden=true;$('settingsBackdrop').hi
   $('aboutBackdrop').addEventListener('click',closeAbout);
 })();
 function closeAbout(){$('aboutCard').hidden=true;$('aboutBackdrop').hidden=true}
+
+/* ==== 轻提示 / 二次确认（同步设置区交互反馈）====
+   两个弹窗共用 #cmpModalBackdrop；backdrop 的 click 已统一绑到 closeCmpModals，
+   这里只需把开关接进同一套 close 函数，避免遮罩残留。
+   toast 为不可点击状态提示，2 秒自动消失，也支持点遮罩/Esc/返回键关闭。
+   状态判定函数 setConfirmOpen / setToastOpen 已在比账区块顶部前置声明。 */
+let setToastTimer=0,setConfirmCb=null;
+function closeSetConfirm(){$('setConfirm').hidden=true;syncCmpBackdrop()}
+function closeSetToast(){clearTimeout(setToastTimer);setToastTimer=0;$('setToast').hidden=true;syncCmpBackdrop()}
+function showSetToast(title,desc){
+  clearTimeout(setToastTimer);
+  $('setToastTitle').textContent=title||'已成功';
+  $('setToastDesc').textContent=desc||'';
+  $('cmpModalBackdrop').hidden=false;
+  $('setToast').hidden=false;
+  setToastTimer=setTimeout(closeSetToast,2000);
+}
+function openSetConfirm(opts){
+  $('setConfirmTitle').textContent=opts.title||'确认';
+  $('setConfirmDesc').textContent=opts.desc||'';
+  const ok=$('setConfirmOk');
+  ok.textContent=opts.okText||'确认';
+  ok.classList.toggle('danger',!!opts.danger);
+  setConfirmCb=opts.onOk||null;
+  $('cmpModalBackdrop').hidden=false;
+  $('setConfirm').hidden=false;
+}
+$('setConfirmCancel').addEventListener('click',closeSetConfirm);
+$('setConfirmOk').addEventListener('click',()=>{
+  const cb=setConfirmCb;setConfirmCb=null;
+  closeSetConfirm();
+  if(cb)cb();
+});
+
 /* 按键震动设置交互 */
 (function(){
   const vib=loadVib();
@@ -1807,40 +1910,59 @@ $('syncSaveBtn').addEventListener('click',async()=>{
     st.textContent='同步完成。另一台设备填同一套配置打开即可互通。';
     st.className='set-status ok';
     $('disconnectBtn').hidden=false;
+    showSetToast('已成功','配置已保存，数据已同步到云端。');
   }catch(e){
     st.textContent='同步失败：'+(e.message||'未知错误');
     st.className='set-status err';
   }
 });
 $('disconnectBtn').addEventListener('click',()=>{
-  sbCfg=null;sb=null;
-  localStorage.removeItem(sbCfgKey);
-  $('disconnectBtn').hidden=true;
-  const st=$('setStatus');
-  st.textContent='已断开云端同步，数据保留在本地。';
-  st.className='set-status';
+  openSetConfirm({
+    title:'确认断开同步？',
+    desc:'断开后本机不再与云端同步，手机和电脑将各自独立记账。已保存在本地的账目不会被删除，重新填入同一套配置即可恢复互通。',
+    okText:'确认断开',
+    danger:true,
+    onOk:()=>{
+      sbCfg=null;sb=null;
+      localStorage.removeItem(sbCfgKey);
+      $('disconnectBtn').hidden=true;
+      const st=$('setStatus');
+      st.textContent='已断开云端同步，数据保留在本地。';
+      st.className='set-status';
+      showSetToast('已断开同步','数据仍保留在本地。');
+    }
+  });
 });
 $('wipeBtn').addEventListener('click',()=>{
-  if(!confirm('确定清空所有记账数据？本地和云端都会删掉，不可恢复。'))return;
-  const wipe=async()=>{
-    entries=[];budgets={};tombIds=[];saveTomb();
-    if(sbReady()){
-      try{await sb.from('entries').delete().gt('id',-1)}catch(e){console.warn('wipe cloud entries',e)}
-      try{await sb.from('budgets').delete().neq('cat','__none__')}catch(e){console.warn('wipe cloud budgets',e)}
+  openSetConfirm({
+    title:'确认清空所有数据？',
+    desc:'本地与云端的全部账目和预算都会被删除，且无法恢复。建议先用右上角的导出功能备份 CSV。',
+    okText:'确认清空',
+    danger:true,
+    onOk:()=>{
+      const wipe=async()=>{
+        entries=[];budgets={};tombIds=[];saveTomb();
+        if(sbReady()){
+          try{await sb.from('entries').delete().gt('id',-1)}catch(e){console.warn('wipe cloud entries',e)}
+          try{await sb.from('budgets').delete().neq('cat','__none__')}catch(e){console.warn('wipe cloud budgets',e)}
+        }
+        save();saveBudgets();render();
+        const st=$('setStatus');
+        st.textContent='已清空所有数据，现在从零开始。';
+        st.className='set-status ok';
+        showSetToast('已清空','所有账目已删除。');
+      };
+      wipe();
     }
-    save();saveBudgets();render();
-    const st=$('setStatus');
-    st.textContent='已清空所有数据，现在从零开始。';
-    st.className='set-status ok';
-  };
-  wipe();
+  });
 });
 
 if(sbReady())sync();
 
+function anyOverlayModalOpen(){return anyCmpModalOpen()||setConfirmOpen()||setToastOpen()}
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
-    if(anyCmpModalOpen())closeCmpModals();
+    if(anyOverlayModalOpen())closeCmpModals();
     else if(!$('aboutCard').hidden)closeAbout();
     else if(!$('settingsSheet').hidden)closeSettings();
     else if(!$('budgetSheet').hidden)closeBudgetSheet();
@@ -1850,7 +1972,7 @@ document.addEventListener('keydown',e=>{
 });
 /* 系统返回键（App bridge）：优先关闭当前打开的界面，全部关闭后返回 false 让 App 退出 */
 window.muheBack=function(){
-  if(anyCmpModalOpen()){closeCmpModals();return true}
+  if(anyOverlayModalOpen()){closeCmpModals();return true}
   if(!$('aboutCard').hidden){closeAbout();return true}
   if(!$('settingsSheet').hidden){closeSettings();return true}
   if(!$('budgetSheet').hidden){closeBudgetSheet();return true}
