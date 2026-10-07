@@ -58,19 +58,35 @@ svg{display:block}
   position:fixed;left:0;right:0;top:0;z-index:20;
   height:calc(var(--topbar-h) + env(safe-area-inset-top));
   padding:env(safe-area-inset-top) 20px 0;
-  display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:18px;
+  display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:8px;
   max-width:1120px;margin:0 auto;
   background:color-mix(in srgb,var(--bg) 82%,transparent);
   backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  /* 等边距：工具按钮是 40×40 的触控盒，里面的图形只有 19px，
+     盒内左右各余 (40-19)/2 = 10.5px，加上图形自身在 viewBox 里的留白
+     （描边 1.8、图形约占 24 单位里的 [2,22]，19px 下折合 1.58px），
+     「可视右边缘」比容器右边距往里缩了约 12.1px。
+     品牌文字是 CJK，左右都没有 side bearing，墨迹就顶在容器边上。
+     因此给品牌补同等的 padding-left，两端视觉边距才相等
+     （像素栅格化实测：三个视口下左右墨迹边距差恒为 −0.5 CSS px）。
+     数值由 --tool-btn / --tool-icon 派生，改按钮或图标尺寸会自动跟随。 */
+  --tool-btn:40px;
+  --tool-icon:19px;
+  --brand-inset:calc((var(--tool-btn) - var(--tool-icon)) / 2 + 2.1px);
 }
-.brand{font-size:17px;font-weight:600;letter-spacing:.02em;justify-self:start}
+.brand{font-size:17px;font-weight:600;letter-spacing:.02em;justify-self:start;
+  padding-left:var(--brand-inset)}
 .topbar-right{display:flex;align-items:center;gap:4px;justify-self:end}
 .icon-btn{width:40px;height:40px;border-radius:20px;display:flex;align-items:center;justify-content:center;color:var(--text-2);transition:background .15s var(--ease-quart),color .15s}
 .icon-btn:hover{background:var(--surface-2);color:var(--text)}
 .icon-btn:active{transform:scale(.92)}
-.month-nav{display:flex;align-items:center;gap:2px;justify-self:center}
-.month-nav .icon-btn{width:36px;height:36px}
-.month-label{min-width:96px;text-align:center;font-size:14px;font-weight:500;color:var(--text-2)}
+/* 月份组：无底色。竖线把「时间上下文」与「工具动作」两组分开。
+   align-items:center 保证 ‹ 月份 › 三点与两侧元素共用同一条中线。 */
+.month-nav{display:flex;align-items:center;justify-content:center;gap:2px;justify-self:center}
+.month-nav .icon-btn{width:34px;height:34px}
+.month-label{min-width:84px;text-align:center;font-size:14px;font-weight:500;color:var(--text-2)}
+/* 两组之间的弱分隔：去掉胶囊底色后，它是唯一的分组线索 */
+.topbar-sep{width:1px;height:20px;background:var(--line);flex:none;margin:0 4px}
 
 .main{margin-top:12px}
 .view{animation:viewIn .35s var(--ease-quart) both}
@@ -339,8 +355,13 @@ svg{display:block}
   max-height:78vh;display:flex;flex-direction:column;
   padding:12px 20px calc(20px + env(safe-area-inset-bottom));
   border-top:1px solid var(--line);
-  animation:sheetUp .38s var(--ease-expo) both;
 }
+/* 入场动画只在「打开」时挂 .cmp-detail-in 触发。
+   注意：绝不能把 animation 常驻写在 .cmp-detail-sheet 上 ——
+   元素从 hidden(display:none) 转为显示时动画会整体重放，
+   抽屉会先停在 translateY(100%)（屏幕外）跑完 380ms 才可见，
+   表现为「点一下没反应、再点一下才出来」。 */
+.cmp-detail-sheet.cmp-detail-in{animation:sheetUp .32s var(--ease-expo) both}
 .cmp-detail-sheet .cmp-detail-head{display:flex;align-items:center;gap:10px;padding:2px 0 12px;flex:none}
 .cmp-detail-sheet .cmp-detail-title{flex:1;min-width:0;font-size:17px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cmp-detail-sheet .cmp-detail-sub{display:block;font-size:12px;color:var(--text-2);font-weight:400;margin-top:3px}
@@ -385,8 +406,9 @@ svg{display:block}
    原实现为「.actions-row（flex 1:2）+ 一个带内联 margin-top:10px 的全宽 .del-btn」，
    三个按钮分属两套尺寸体系（46px / 52px）、两种底部间距（10px / 14px），
    视觉上不成组。此处收敛为单一容器：主按钮 52px 全宽主色，
-   危险区 2 列 grid 一律 46px，断开同步与清空所有数据同宽等高。
-   断开同步 hidden 时清空所有数据自动跨满两列，避免留下空列造成"歪"的观感。 */
+   危险区 2 列 grid 一律 46px，断开同步与清空所有数据同宽等高、永远并排 50/50。
+   断开同步在未连接云端时**不隐藏、改置灰**（disabled），这样 grid 恒为两列，
+   布局不会在"已连接 / 未连接"两态之间跳动。 */
 .set-actions{margin-top:14px;display:flex;flex-direction:column;gap:10px}
 .set-actions .save-btn{margin-top:0;width:100%}
 .set-danger{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -395,9 +417,11 @@ svg{display:block}
   background:var(--surface-2);color:var(--text-2);
   transition:background .15s,color .15s,transform .12s var(--ease-quart)}
 .set-danger-btn.danger{background:color-mix(in srgb,var(--neg) 8%,transparent);color:var(--neg)}
-.set-danger-btn:active{transform:scale(.97)}
-.set-danger-btn.danger:active{background:var(--neg);color:#fff}
-.set-danger-btn.last{grid-column:1/-1}
+/* 置灰态必须在 :active 之前声明优先级，且 :active 要排除 disabled，
+   否则禁用按钮被按下时仍会缩放、看起来"可点" */
+.set-danger-btn:disabled{opacity:.4;cursor:default;pointer-events:none}
+.set-danger-btn:not(:disabled):active{transform:scale(.97)}
+.set-danger-btn.danger:not(:disabled):active{background:var(--neg);color:#fff}
 
 /* 记一笔 */
 .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:40;animation:fadeIn .2s ease both}
@@ -462,15 +486,25 @@ svg{display:block}
 .save-btn:disabled{opacity:.35;cursor:default}
 .save-btn:not(:disabled):active{transform:scale(.98)}
 
-/* 窄屏：三列 grid 下收紧间距与控件尺寸，避免品牌/月份/图标相互挤压。
-   注意 .app 的横向 padding 必须与 .topbar 保持一致（同为 12px），
-   否则固定顶部栏与页面内容左右边缘会错位。 */
-@media (max-width:640px){
+/* 紧凑档：四列 grid（品牌 / 月份 / 分隔线 / 工具组）在 700px 以下收紧间距与
+   控件尺寸，否则品牌 + 月份组 + 分隔线 + 三个工具按钮会超出容器（实测 390px
+   视口下约溢出 1px）。 */
+@media (max-width:700px){
   .app{padding-left:12px;padding-right:12px}
-  .topbar{padding-left:12px;padding-right:12px;gap:6px}
-  .topbar .brand{font-size:14px}
-  .month-label{min-width:76px;font-size:13px}
-  .topbar .icon-btn,.month-nav .icon-btn{width:32px;height:32px}
+  .topbar{padding-left:12px;padding-right:12px;gap:5px;
+    /* 紧凑档工具按钮收到 34px，等边距基准跟着 --tool-btn 自动重算，
+       +2.1px 是图标墨迹在 viewBox 里的单侧留白，两档共用 */
+    --tool-btn:34px;--tool-icon:19px}
+  .topbar .brand{font-size:15px}
+  .month-label{min-width:72px;font-size:13px}
+  .topbar .icon-btn{width:34px;height:34px}
+  .month-nav .icon-btn{width:30px;height:30px}
+  .topbar-right{gap:2px}
+  .topbar-sep{margin:0 2px}
+}
+@media (max-width:640px){
+  /* .app 的横向 padding 必须与 .topbar 保持一致（同为 12px），
+     否则固定顶部栏与页面内容左右边缘会错位。 */
   .cmp-row{grid-template-columns:28px minmax(0,1fr) auto auto;gap:8px;font-size:12px}
   .cmp-row .cmp-row-vals.inc{display:none}
   .cmp-duel{gap:12px}
@@ -509,14 +543,15 @@ svg{display:block}
   <header class="topbar">
     <span class="brand">两记</span>
     <div class="month-nav">
-      <button class="icon-btn" id="prevMonth" aria-label="上个月"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg></button>
+      <button class="icon-btn" id="prevMonth" aria-label="上个月"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg></button>
       <span class="month-label num" id="monthLabel">—</span>
-      <button class="icon-btn" id="nextMonth" aria-label="下个月"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg></button>
+      <button class="icon-btn" id="nextMonth" aria-label="下个月"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg></button>
     </div>
+    <span class="topbar-sep" aria-hidden="true"></span>
     <div class="topbar-right">
       <button class="icon-btn" id="settingsBtn" aria-label="同步设置"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.1-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.88 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.1 1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.88.34h.01a1.7 1.7 0 0 0 1.02-1.56V3a2 2 0 1 1 4 0v.09c0 .68.4 1.3 1.03 1.56a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.88v.01c.27.62.88 1.02 1.56 1.02H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51.97z"/></svg></button>
       <button class="icon-btn" id="exportBtn" aria-label="导出 CSV"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M8 11l4 4 4-4"/><path d="M5 19h14"/></svg></button>
-      <button class="icon-btn" id="themeToggle" aria-label="切换深浅色"></button>
+      <button class="icon-btn" id="themeToggle" aria-label="切换深浅色"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.87 14.5A8.5 8.5 0 0 1 10.37 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg></button>
     </div>
   </header>
 
@@ -781,8 +816,8 @@ svg{display:block}
   <div class="sheet-fixed set-actions">
     <button class="save-btn" id="syncSaveBtn">保存并同步</button>
     <div class="set-danger">
-      <button class="set-danger-btn danger" id="disconnectBtn" hidden>断开同步</button>
-      <button class="set-danger-btn danger last" id="wipeBtn">清空所有数据</button>
+      <button class="set-danger-btn danger" id="disconnectBtn" disabled>断开同步</button>
+      <button class="set-danger-btn danger" id="wipeBtn">清空所有数据</button>
     </div>
   </div>
 
@@ -857,7 +892,9 @@ bonus:'<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5.5a2 2 0 0 0 0 4H8M16 6
 invest:'<path d="M4 17l5-5 3.5 3.5L20 8"/><path d="M15 8h5v5"/>',
 parttime:'<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3.5 2"/>',
 hongbao:'<rect x="4.5" y="7.5" width="15" height="12" rx="2.5"/><path d="M4.5 10.8C7 8.6 9.6 8.4 12 10.4c2.4-2 5-1.8 7.5.4"/><path d="M12 10.5V16"/><circle cx="12" cy="17.6" r="1.2"/>',
-other:'<circle cx="12" cy="12" r="3"/>'};
+other:'<circle cx="12" cy="12" r="3"/>',
+sun:'<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/>',
+moon:'<path d="M20.87 14.5A8.5 8.5 0 0 1 10.37 4a8.5 8.5 0 1 0 10.5 10.5z"/>'};
 const wrap=(n,sz)=>`<svg viewBox="0 0 24 24" width="${sz||20}" height="${sz||20}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]||''}</svg>`;
 const CATS_EXPENSE=[
 {id:'food',name:'餐饮',color:'#ff9500',icon:'food'},
@@ -1194,12 +1231,20 @@ function openCmpDetail(peerId){
   const[y,m]=ymParts(cmpState.ym);
   $('cmpDetailTitle').innerHTML=`${escapeHtml(target.nickname)}<span class="cmp-detail-sub">${y}年${m}月 · 支出与收入明细</span>`;
   renderCmpDetail();
-  showCmpModal($('cmpDetailSheet'));
+  const sheet=$('cmpDetailSheet');
+  /* 重启入场动画：先摘类 → 强制重排 → 再挂类。
+     必须在 hidden=false 之前完成重排，否则动画不会重新开始。 */
+  sheet.classList.remove('cmp-detail-in');
+  void sheet.offsetWidth;
+  sheet.classList.add('cmp-detail-in');
+  showCmpModal(sheet);
   fetchDetails(target.peer_id,cmpState.ym).then(()=>{cmpState.detailLoading=false;renderCmpDetail()});
 }
 function closeCmpDetail(){
   cmpState.detailLoading=false;
-  $('cmpDetailSheet').hidden=true;
+  const sheet=$('cmpDetailSheet');
+  sheet.classList.remove('cmp-detail-in');
+  sheet.hidden=true;
   syncCmpBackdrop();
 }
 /* 明细行复用「账单」页的 .row 观感（分类图标 + 备注 + 金额），但整行只读、不可点。 */
@@ -2001,7 +2046,7 @@ function openSettings(){
   $('setUrl').value=sbCfg?sbCfg.url:'';
   $('setKey').value=sbCfg?sbCfg.key:'';
   $('setOwner').value=sbCfg?sbCfg.owner:'';
-  $('disconnectBtn').hidden=!sbCfg;
+  $('disconnectBtn').disabled=!sbCfg;
   const st=$('setStatus');
   st.className='set-status'+(sbCfg?' ok':'');
   st.textContent=sbCfg?'已连接，本地优先、云端自动同步':'未配置——填好下方三项即可开启双端同步';
@@ -2113,7 +2158,7 @@ $('syncSaveBtn').addEventListener('click',async()=>{
     await sync();
     st.textContent='同步完成。另一台设备填同一套配置打开即可互通。';
     st.className='set-status ok';
-    $('disconnectBtn').hidden=false;
+    $('disconnectBtn').disabled=false;
     showSetToast('已成功','配置已保存，数据已同步到云端。');
   }catch(e){
     st.textContent='同步失败：'+(e.message||'未知错误');
@@ -2129,7 +2174,7 @@ $('disconnectBtn').addEventListener('click',()=>{
     onOk:()=>{
       sbCfg=null;sb=null;
       localStorage.removeItem(sbCfgKey);
-      $('disconnectBtn').hidden=true;
+      $('disconnectBtn').disabled=true;
       const st=$('setStatus');
       st.textContent='已断开云端同步，数据保留在本地。';
       st.className='set-status';
