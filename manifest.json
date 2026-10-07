@@ -1,9 +1,9 @@
 {
-  "version": "20261007-1928",
+  "version": "20261007-2158",
   "files": [
     {
       "path": "index.html",
-      "sha256": "e8478cf6d75209df13b3fba7fc0d2d4144d1fbf3b04de0f2b0540fb6a3e0557f"
+      "sha256": "0c2b052f4fbf56b3c2495ea1befebffbf04eac795e9a52e0c89e9870857f84aa"
     },
     {
       "path": "supabase.min.js",
