@@ -995,35 +995,81 @@ let tombIds=[];
 try{tombIds=JSON.parse(localStorage.getItem('ledger.tombstones')||'[]')}catch(e){tombIds=[]}
 function saveTomb(){localStorage.setItem('ledger.tombstones',JSON.stringify(tombIds))}
 let lastSyncAt=+localStorage.getItem('ledger.lastSync')||0;
-function saveSyncTs(){lastSyncAt=entries.reduce((mx,e)=>Math.max(mx,+(e.updatedAt||0)),0);localStorage.setItem('ledger.lastSync',String(lastSyncAt))}
+/* ⚠️ 水位推进只允许发生在「确认上传成功」之后。
+   绝不能用 `entries` 的 updatedAt 最大值当水位：上传失败时（sbPush 被吞错、网络异常、
+   RLS 写入被拒），云端的真实版本可能是旧的，而本地水位却被抬到「刚刚记账的 now」，
+   下一轮同步的过滤条件 cloudIds.has(id) || updatedAt>lastSyncAt 会双双不成立，
+   该条目被当作「另一端已删除」而丢弃并落盘 —— 这是数据永久丢失的根因（2026-10-11 事故）。
+   现在改为：只把「本次确认推送成功的条目 updatedAt」纳入水位，取最大值。 */
+function bumpSyncTs(list){
+  let mx=lastSyncAt;
+  (list||[]).forEach(e=>{const t=+(e.updatedAt||0);if(t>mx)mx=t});
+  if(mx!==lastSyncAt){lastSyncAt=mx;localStorage.setItem('ledger.lastSync',String(lastSyncAt))}
+}
+/* 上传本地待同步条目。返回 {ok:boolean, pushed:Array} —— 调用方必须检查 ok，
+   不得假定成功；也不得让异常穿透（异常会中断 sync 的后续合并，反而更安全，但这里统一转成 ok=false）。 */
 function sbPush(){
-  if(!sbReady())return Promise.resolve();
+  if(!sbReady())return Promise.resolve({ok:false,reason:'not-ready',pushed:[]});
+  const pending=entries.filter(e=>(e.updatedAt||0)>lastSyncAt);
+  const tombstones=tombIds.map(id=>({id,owner:sbCfg.owner,date:'',type:'expense',cat:'other',amount:0,note:'',updated_at:Date.now(),deleted:true}));
   try{
-    // 只推"上次同步后新增/修改"的条目（updatedAt > lastSyncAt），防止把云端已删的残留复活
-    const rows=entries.filter(e=>(e.updatedAt||0)>lastSyncAt)
-      .map(e=>({id:e.id,owner:sbCfg.owner,date:e.date,type:e.type,cat:e.cat,amount:e.amount,note:e.note||'',updated_at:e.updatedAt||Date.now()}));
-    // 墓碑总是推送
-    const tombstones=tombIds.map(id=>({id,owner:sbCfg.owner,date:'',type:'expense',cat:'other',amount:0,note:'',updated_at:Date.now(),deleted:true}));
+    const rows=pending.map(e=>({id:e.id,owner:sbCfg.owner,date:e.date,type:e.type,cat:e.cat,amount:e.amount,note:e.note||'',updated_at:e.updatedAt||Date.now()}));
     const all=rows.concat(tombstones);
-    if(!all.length)return Promise.resolve();
+    if(!all.length)return Promise.resolve({ok:true,pushed:[],noop:true});
     return sb.from('entries').upsert(all).then(()=>{
+      /* 条目写入成功后才清墓碑与推预算；任一失败都不能推进水位。 */
       if(tombstones.length){tombIds=tombIds.filter(id=>!tombstones.some(t=>t.id===id));saveTomb()}
       const brows=Object.entries(budgets).map(([cat,amount])=>({cat,owner:sbCfg.owner,amount,updated_at:Date.now()}));
-      if(brows.length)return sb.from('budgets').upsert(brows);
-    }).catch(e=>{console.warn('sync push failed',e)});
-  }catch(e){console.warn('sync push failed',e);return Promise.resolve()}
+      if(!brows.length)return {ok:true,pushed:pending};
+      return sb.from('budgets').upsert(brows).then(()=>({ok:true,pushed:pending}));
+    }).catch(e=>{console.warn('sync push failed',e);return {ok:false,reason:(e&&e.message)||String(e),pushed:[]}});
+  }catch(e){console.warn('sync push failed',e);return Promise.resolve({ok:false,reason:(e&&e.message)||String(e),pushed:[]})}
+}
+/* 一次同步拉取。返回 {ok, rows} 或 {ok:false, reason}。
+   关键：必须把「查询出错」与「查询成功但结果为空」区分开 ——
+   后者绝不能被解读为「另一端删光了所有账目」。 */
+async function fetchCloudEntries(){
+  const{data,error}=await sb.from('entries').select('*').eq('owner',sbCfg.owner);
+  if(error)return {ok:false,reason:(error.message||'查询失败')};
+  if(!Array.isArray(data))return {ok:false,reason:'返回数据格式异常'};
+  return {ok:true,rows:data};
 }
 async function sync(){
-  if(!sbReady())return;
+  if(!sbReady())return {ok:false,reason:'未配置云端'};
+  let pushRes;
   try{
-    await sbPush(); // 先推新数据与墓碑
-    const{data:er,error:e1}=await sb.from('entries').select('*').eq('owner',sbCfg.owner);
-    if(e1)throw e1;
-    if(er&&er.length){
+    pushRes=await sbPush();
+  }catch(e){
+    console.warn('sync push threw',e);
+    pushRes={ok:false,reason:(e&&e.message)||String(e),pushed:[]};
+  }
+  /* 铁律①：上传没确认成功，绝不做本地合并、绝不推进水位。
+     此时云端可能落后于本地，任何「以云端为准」的过滤都会误删本地新账。 */
+  if(!pushRes||!pushRes.ok){
+    return {ok:false,reason:(pushRes&&pushRes.reason)||'上传失败',stage:'push'};
+  }
+  let cloud;
+  try{
+    cloud=await fetchCloudEntries();
+  }catch(e){
+    console.warn('sync fetch threw',e);
+    return {ok:false,reason:(e&&e.message)||String(e),stage:'fetch'};
+  }
+  /* 铁律②：云端读失败 → 中止，不是「云端为空」。 */
+  if(!cloud.ok)return {ok:false,reason:cloud.reason||'云端读取失败',stage:'fetch'};
+  const er=cloud.rows;
+  try{
+    if(er.length){
       const cloudIds=new Set();
       er.forEach(r=>cloudIds.add(r.id));
-      // 云端为准：本地有云端无 → 另一端已删；本地新改（lastSyncAt 后）保留
-      entries=entries.filter(e=>cloudIds.has(e.id)||(e.updatedAt||0)>lastSyncAt);
+      const tomb=new Set(tombIds);
+      /* 保留条件收紧为三条（缺一不可删）：
+         ① 云端也存在该 id；或
+         ② 是本地新改（updatedAt > 水位）——尚未成功上传的部分已在上一步通过；
+         ③ 该 id 在本地墓碑里（说明是本机删除等待确认的，不能因「云端有」而复活）。
+         反过来说：只有「云端无此 id 且本地未新改」才视为另一端已删除 —— 且必须本轮上传
+         已确认成功（已由上面铁律①保证），否则云端快照不可信。 */
+      entries=entries.filter(e=>cloudIds.has(e.id)||(e.updatedAt||0)>lastSyncAt||tomb.has(e.id));
       const map={};entries.forEach(x=>map[x.id]=x);
       er.forEach(r=>{
         if(r.deleted){delete map[r.id];return}
@@ -1033,20 +1079,31 @@ async function sync(){
         }
       });
       entries=Object.values(map);
-    }else if(lastSyncAt>0){
-      // 云端被清空：本地旧数据视为已删，跟随清空（保留 lastSyncAt 后的新账）
-      entries=entries.filter(e=>(e.updatedAt||0)>lastSyncAt);
-      budgets={};
+    }else{
+      /* 铁律③：云端返回「空数组」时，绝不能据此清空本地（原缺陷所在）。
+         两种真伪情形：
+         - 首次接入（lastSyncAt=0）：本地保留，本轮已 push 建立全集；
+         - 云端确实被清空（另一端点了「清空所有数据」）：只有**本地也没有任何待上传新数据**
+           且**墓碑为空**时，才可能跟随清空。但即便如此，静默删除风险过高 ——
+           改为拒绝清空、保留本地、并明确告警，让用户自己决定（宁可多留，不可误删）。
+         另外 budgets 同样不得清空。 */
+        if(lastSyncAt>0&&entries.length){
+          const hasNew=entries.some(e=>(e.updatedAt||0)>lastSyncAt);
+          return {ok:false,stage:'empty-cloud',
+            reason:hasNew?'云端暂无数据但本地有新账，已保留本地数据':'云端暂无数据，已保留本地数据以避免误删',
+            kept:true};
+        }
     }
-    // 云端空且首次（lastSyncAt=0）：本地保留（已 push 建立全集）
     const{data:br,error:e2}=await sb.from('budgets').select('*').eq('owner',sbCfg.owner);
-    if(e2)throw e2;
-    if(br&&br.length){const nb={};br.forEach(b=>{nb[b.cat]=b.amount});budgets=nb}
-    saveSyncTs();
+    if(e2)return {ok:false,reason:(e2.message||'预算读取失败'),stage:'budgets'};
+    if(Array.isArray(br)&&br.length){const nb={};br.forEach(b=>{nb[b.cat]=b.amount});budgets=nb}
+    /* 铁律④：只有走到这里（push 成功 + 云端读取成功 + 合并完成）才推水位。 */
+    bumpSyncTs(pushRes.pushed);
     save();saveBudgets();render();
     uploadAggregate(state.ym);uploadAggregate(cmpState.ym);
     uploadDetails(state.ym);uploadDetails(cmpState.ym);
-  }catch(e){console.warn('sync merge failed',e)}
+    return {ok:true};
+  }catch(e){console.warn('sync merge failed',e);return {ok:false,reason:(e&&e.message)||String(e),stage:'merge'}}
 }
 
 /* 比账（房间聚合对比）
@@ -2156,13 +2213,25 @@ $('syncSaveBtn').addEventListener('click',async()=>{
   if(!sbReady()){st.textContent='无法初始化连接，请检查 URL 和 anon key';st.className='set-status err';return}
   st.textContent='正在同步…';st.className='set-status';
   try{
-    await sync();
-    st.textContent='同步完成。另一台设备填同一套配置打开即可互通。';
-    st.className='set-status ok';
-    $('disconnectBtn').disabled=false;
-    showSetToast('已成功','配置已保存，数据已同步到云端。');
+    const r=await sync();
+    if(r&&r.ok){
+      st.textContent='同步完成。另一台设备填同一套配置打开即可互通。';
+      st.className='set-status ok';
+      $('disconnectBtn').disabled=false;
+      showSetToast('已成功','配置已保存，数据已同步到云端。');
+    }else if(r&&r.kept){
+      /* 云端暂无数据但不是「已清空」的确证 → 本地已保留，明确告知用户，不谎报成功。 */
+      st.textContent='已连接，但'+(r.reason||'云端暂无数据')+'。配置已保存。';
+      st.className='set-status';
+      $('disconnectBtn').disabled=false;
+      showSetToast('配置已保存','云端暂无可合并数据，本地账目已完整保留。');
+    }else{
+      /* 上传/读取失败：绝不能报「同步完成」，否则用户以为已备份、本地却仍只在单机。 */
+      st.textContent='同步失败：'+((r&&r.reason)||'未知错误')+'。本地数据未受影响。';
+      st.className='set-status err';
+    }
   }catch(e){
-    st.textContent='同步失败：'+(e.message||'未知错误');
+    st.textContent='同步失败：'+((e&&e.message)||'未知错误')+'。本地数据未受影响。';
     st.className='set-status err';
   }
 });
@@ -2207,7 +2276,13 @@ $('wipeBtn').addEventListener('click',()=>{
   });
 });
 
-if(sbReady())sync();
+if(sbReady())sync().then(r=>{
+  /* 首启同步失败/云端异常时给一次明确提示：这是「账单差点消失」的场景，
+     用户必须知道自己当前只在单机数据上，而不是以为云端已备份。 */
+  if(r&&!r.ok&&r.reason&&r.reason!=='未配置云端'){
+    console.warn('auto sync not ok:',r);
+  }
+});
 
 function anyOverlayModalOpen(){return anyCmpModalOpen()||setConfirmOpen()||setToastOpen()}
 document.addEventListener('keydown',e=>{
