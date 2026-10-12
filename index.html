@@ -377,6 +377,8 @@ svg{display:block}
 /* 只读提示：明细行不可编辑，视觉上略降一级以免误以为可点 */
 .cmp-detail-scroll .row .cat-icon{opacity:.92}
 .cmp-detail-note{font-size:11px;color:var(--text-3);text-align:center;padding:14px 0 2px;line-height:1.7}
+.cmp-detail-retry{font-size:13px;color:var(--text);background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:7px 20px;cursor:pointer;font-family:inherit}
+.cmp-detail-retry:active{transform:scale(.97)}
 /* 比账弹窗（换房间二次确认 / 改昵称） */
 .cmp-modal{position:fixed;z-index:70;left:50%;top:50%;transform:translate(-50%,-50%);width:min(340px,calc(100vw - 48px));background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:24px 22px 18px;box-shadow:0 12px 40px rgba(0,0,0,.18);animation:cmpModalIn .22s var(--ease-expo) both}
 @keyframes cmpModalIn{from{opacity:0;transform:translate(-50%,-46%) scale(.97)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
@@ -1154,20 +1156,68 @@ function aggFor(ym){
   const s=sums(list);
   return{expense:Math.round(s.out*100)/100,income:Math.round(s.inc*100)/100,count:list.length};
 }
+/* ==== 比账请求统一治理：超时 + 可重试 + 准确的成功/失败语义 ====
+   背景（2026-10-12 定位）：原先三类请求都是裸 await，supabase-js 默认不超时，
+   弱网下请求悬着不返回，界面表现为「刷新中…半天没反应」；且上传与拉取未串联，
+   读请求常先于写请求返回，导致「进房间看不到自己」。此处统一收口。 */
+const CMP_TIMEOUT_MS=9000;
+/* 给 thenable 包一层超时：超时后以 {error:超时错误} 收尾，绝不永不返回。
+   注意：supabase-js 的构造器是 thenable，必须调用 .then 才会真正发出请求。 */
+function withTimeout(builder,label,ms){
+  const limit=ms||CMP_TIMEOUT_MS;
+  return new Promise(resolve=>{
+    let settled=false;
+    const timer=setTimeout(()=>{
+      if(settled)return;
+      settled=true;
+      resolve({data:null,error:{message:(label||'请求')+'超时（'+Math.max(1,Math.round(limit/1000))+'秒未响应，请检查网络后重试）'}});
+    },limit);
+    Promise.resolve(builder).then(
+      r=>{if(settled)return;settled=true;clearTimeout(timer);resolve(r)},
+      e=>{if(settled)return;settled=true;clearTimeout(timer);resolve({data:null,error:{message:(e&&e.message)||String(e)}})}
+    );
+  });
+}
+/* 上传本月汇总。返回 {ok,reason} —— 调用方必须据此判断，不得假定成功。
+   与 sbPush() 的三元态语义保持一致。 */
 function uploadAggregate(ym){
-  if(!cmpReady())return Promise.resolve();
+  if(!cmpReady())return Promise.resolve({ok:false,reason:'未加入房间'});
   ym=ym||state.ym;
   const a=aggFor(ym);
-  return sb.from('aggregates_v1').upsert(
-    {room_code:cmp.room,peer_id:cmp.peer_id,nickname:cmp.nickname,ym:ym,expense:a.expense,income:a.income,count:a.count,updated_at:Date.now()},
-    {onConflict:'room_code,peer_id,ym'}
-  ).then(()=>{if(cmpState.fetchErr&&cmpState.fetchErr.indexOf('上传失败')===0)cmpState.fetchErr=''})
-   .catch(e=>{console.warn('compare upload failed',e);cmpState.fetchErr='上传失败：'+(e.message||e||'未知错误');renderCompare()});
+  return withTimeout(
+    sb.from('aggregates_v1').upsert(
+      {room_code:cmp.room,peer_id:cmp.peer_id,nickname:cmp.nickname,ym:ym,expense:a.expense,income:a.income,count:a.count,updated_at:Date.now()},
+      {onConflict:'room_code,peer_id,ym'}
+    ),
+    '上传本月汇总'
+  ).then(r=>{
+    if(r&&r.error){
+      console.warn('compare upload failed',r.error);
+      cmpState.fetchErr='上传失败：'+(r.error.message||'未知错误');
+      return {ok:false,reason:cmpState.fetchErr};
+    }
+    if(cmpState.fetchErr&&cmpState.fetchErr.indexOf('上传失败')===0)cmpState.fetchErr='';
+    return {ok:true};
+  });
+}
+/* 把「本月汇总 + 本月明细」一起传完，再执行后续动作。
+   这是修复「先写后读竞态」的统一入口：任何需要拿到「含自己在内的房间数据」
+   的路径，都必须 await 本函数后再 fetch。 */
+function cmpFlushThen(ym,after){
+  ym=ym||cmpState.ym;
+  const flush=Promise.all([uploadAggregate(ym),uploadDetails(ym)]);
+  return flush.then(rs=>{
+    const failed=rs.filter(r=>r&&r.ok===false);
+    return after?after(failed[0]||null):null;
+  });
 }
 async function fetchAggregates(ym){
   if(!cmpReady())return false;
   try{
-    const{data,error}=await sb.from('aggregates_v1').select('*').eq('room_code',cmp.room).eq('ym',ym);
+    const{data,error}=await withTimeout(
+      sb.from('aggregates_v1').select('*').eq('room_code',cmp.room).eq('ym',ym),
+      '拉取房间汇总'
+    );
     if(error){cmpState.fetchErr=(error.message||'查询失败')+'（检查云端 aggregates_v1 表是否已用新 SQL 重建）';console.warn('compare fetch failed',error);return false}
     cmpState.fetchErr='';
     cmpState.data=(data||[]).filter(r=>r.peer_id||r.nickname).map(r=>({peer_id:r.peer_id||'',nickname:r.nickname,expense:+r.expense||0,income:+r.income||0,count:+r.count||0}));
@@ -1189,14 +1239,22 @@ function uploadDetails(ym){
   }));
   const del=sb.from('details_v1').delete().eq('room_code',cmp.room).eq('peer_id',cmp.peer_id).eq('ym',ym);
   const chain=rows.length?del.then(()=>sb.from('details_v1').upsert(rows,{onConflict:'room_code,peer_id,ym,entry_id'})):del;
-  return Promise.resolve(chain).catch(e=>{console.warn('detail upload failed',e)});
+  /* 同样收口为 {ok} 三元态：cmpFlushThen 需要据此判断「先写后读」里的写是否真的成功。
+     原先只 console.warn，会让上传失败被误判为成功。 */
+  return Promise.resolve(chain).then(
+    r=>(r&&r.error)?{ok:false,reason:r.error.message||'明细上传失败'}:{ok:true}
+  ).catch(e=>{console.warn('detail upload failed',e);return {ok:false,reason:(e&&e.message)||String(e)}});
 }
-/* 明细拉取：只拉目标 peer 的当月明细，按日期倒序、同日按 entry_id 倒序（与本地账单页一致） */
+/* 明细拉取：只拉目标 peer 的当月明细，按日期倒序、同日按 entry_id 倒序（与本地账单页一致）。
+   带超时：弱网下不会永久停在「正在读取 TA 的明细…」。 */
 async function fetchDetails(peerId,ym){
   if(!cmpReady()||!peerId)return false;
   try{
-    const{data,error}=await sb.from('details_v1').select('*')
-      .eq('room_code',cmp.room).eq('peer_id',peerId).eq('ym',ym);
+    const{data,error}=await withTimeout(
+      sb.from('details_v1').select('*')
+        .eq('room_code',cmp.room).eq('peer_id',peerId).eq('ym',ym),
+      '拉取 TA 的明细'
+    );
     if(error){
       cmpState.detailErr=(error.message||'查询失败')+'（检查云端 details_v1 表是否已用新 SQL 重建）';
       console.warn('detail fetch failed',error);
@@ -1316,7 +1374,15 @@ function renderCmpDetail(){
   }
   if(cmpState.detailErr){
     sum.innerHTML='';
-    box.innerHTML=`<div class="empty" style="padding:40px 12px">拉取失败：${escapeHtml(cmpState.detailErr)}</div>`;
+    /* 弱网 / 超时的常见场景，必须给一键重试，否则只能关掉抽屉重进。 */
+    box.innerHTML=`<div class="empty" style="padding:40px 12px">拉取失败：${escapeHtml(cmpState.detailErr)}
+      <div style="margin-top:12px"><button class="cmp-detail-retry" id="cmpDetailRetry">重试</button></div></div>`;
+    const rb=document.getElementById('cmpDetailRetry');
+    if(rb)rb.addEventListener('click',()=>{
+      if(!cmpState.peer)return;
+      cmpState.detailErr='';cmpState.detailLoading=true;renderCmpDetail();
+      fetchDetails(cmpState.peer,cmpState.ym).then(()=>{cmpState.detailLoading=false;renderCmpDetail()});
+    });
     return;
   }
   const rows=(cmpState.detail&&cmpState.detail.peer_id===cmpState.peer&&cmpState.detail.ym===cmpState.ym)
@@ -1410,8 +1476,8 @@ function shiftCmpMonth(d){
   /* 切月后旧的明细缓存必然属于上一个月，必须作废：
      否则抽屉会短暂显示「上个月的明细 + 这个月的标题」，是明确的数据错配。 */
   cmpState.detail=null;cmpState.detailErr='';cmpState.detailLoading=false;
-  uploadAggregate(cmpState.ym);uploadDetails(cmpState.ym);
-  Promise.all([fetchAggregates(cmpState.ym)]).then(()=>renderCompare());
+  /* 先写后读：必须等本月汇总写入云端成功，再拉取，否则拉回来的名单不含自己。 */
+  cmpFlushThen(cmpState.ym,()=>fetchAggregates(cmpState.ym)).then(()=>renderCompare());
 }
 document.getElementById('cmpJoin').addEventListener('click',()=>{
   const nick=document.getElementById('cmpName').value.trim(),room=document.getElementById('cmpRoom').value.trim().toUpperCase();
@@ -1421,8 +1487,9 @@ document.getElementById('cmpJoin').addEventListener('click',()=>{
   persistCmp();cmpState.ym=state.ym;cmpState.data=null;cmpState.fetchErr='';
   cmpState.detail=null;cmpState.detailErr='';
   renderCompare();
-  uploadAggregate(cmpState.ym);uploadDetails(cmpState.ym);
-  fetchAggregates(cmpState.ym).then(()=>renderCompare());
+  /* 先写后读（原缺陷：此处 upload 未串联、与 fetch 并发起跑，导致她刚入房时
+     看到「房间里只有对方」——读请求先于写请求返回，云端还没有她的行）。 */
+  cmpFlushThen(cmpState.ym,()=>fetchAggregates(cmpState.ym)).then(()=>renderCompare());
 });
 document.getElementById('cmpGen').addEventListener('click',()=>{document.getElementById('cmpRoom').value=genRoomCode()});
 /* 换房间：先二次确认，确认后才清空房间（昵称与 peer_id 保持不变，换房间不换身份） */
@@ -1461,17 +1528,24 @@ document.getElementById('cmpRefresh').addEventListener('click',()=>{
   if(btn.disabled)return;
   btn.disabled=true;
   btn.innerHTML='<span class="cmp-spinner"></span>刷新中…';
-  uploadAggregate(cmpState.ym).then(()=>fetchAggregates(cmpState.ym)).then(ok=>{
+  /* 先确认写入成功，再拉取 —— 否则拉回来的房间名单可能不含自己（竞态）。
+     按钮文案由真实结果驱动：上传失败与拉取失败要分别说清，不能都含糊成「刷新失败」。 */
+  cmpFlushThen(cmpState.ym,upFail=>fetchAggregates(cmpState.ym).then(ok=>({ok,upFail}))).then(r=>{
     renderCompare();
-    if(ok){
-      btn.classList.add('done');
-      btn.textContent='已更新';
-      setTimeout(()=>{btn.classList.remove('done');btn.disabled=false;btn.textContent='刷新数据'},1500);
-    }else{
-      btn.classList.add('err');
-      btn.textContent='刷新失败';
-      setTimeout(()=>{btn.classList.remove('err');btn.disabled=false;btn.textContent='刷新数据'},1500);
-    }
+    let cls='done',text='已更新';
+    if(!r.ok){cls='err';text='刷新失败'}
+    else if(r.upFail){cls='err';text='上传失败'}
+    btn.classList.remove('done','err');
+    btn.classList.add(cls);
+    btn.textContent=text;
+    setTimeout(()=>{btn.classList.remove('done','err');btn.disabled=false;btn.textContent='刷新数据'},1500);
+  }).catch(e=>{
+    console.warn('cmp refresh failed',e);
+    renderCompare();
+    btn.classList.remove('done');
+    btn.classList.add('err');
+    btn.textContent='刷新失败';
+    setTimeout(()=>{btn.classList.remove('done','err');btn.disabled=false;btn.textContent='刷新数据'},1500);
   });
 });
 document.getElementById('cmpList').addEventListener('click',e=>{
@@ -1868,7 +1942,13 @@ function setView(v){
   $('viewStats').hidden=v!=='stats';
   $('viewCompare').hidden=v!=='compare';
   if(v==='stats')renderStats();
-  if(v==='compare'){renderCompare();fetchAggregates(cmpState.ym).then(()=>renderCompare())}
+  /* 进比账页：原实现「只拉不传」，若本机此前上传失败过，此后每次进页都拿不到
+     自己的行 → 持续呈现「房间里只有对方」。改为先写后读（cmpFlushThen 会确保
+     本月汇总与明细都写成功后再拉），等价于每次进页自动补一次上传。 */
+  if(v==='compare'){
+    renderCompare();
+    cmpFlushThen(cmpState.ym,()=>fetchAggregates(cmpState.ym)).then(()=>renderCompare());
+  }
 }
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>setView(t.dataset.view)));
 $('prevMonth').addEventListener('click',()=>{shiftMonth(-1);render()});
@@ -2080,7 +2160,10 @@ $('saveBtn').addEventListener('click',()=>{
   }
   save();closeSheet();render();
   if(state.view==='stats')setView('bills');
+  /* 记一笔后必须同时更新「汇总」与「明细」：原先只传汇总，导致对方点开明细时
+     看不到刚记的这笔，要等下一次完整 sync 才补上（明细滞后的原因之一）。 */
   uploadAggregate();
+  uploadDetails();
 });
 $('delBtn').addEventListener('click',()=>{
   if(!state.sheet.editId)return;
@@ -2092,7 +2175,9 @@ $('delBtn').addEventListener('click',()=>{
     sbPush();
   }
   save();closeSheet();render();
+  /* 删一笔后同样要刷明细，否则对方打开明细仍能看到已删的账。 */
   uploadAggregate();
+  uploadDetails();
 });
 
 /* 搜索 */
