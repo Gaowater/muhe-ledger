@@ -78,8 +78,18 @@ svg{display:block}
   padding-left:var(--brand-inset)}
 .topbar-right{display:flex;align-items:center;gap:4px;justify-self:end}
 .icon-btn{width:40px;height:40px;border-radius:20px;display:flex;align-items:center;justify-content:center;color:var(--text-2);transition:background .15s var(--ease-quart),color .15s}
-.icon-btn:hover{background:var(--surface-2);color:var(--text)}
-.icon-btn:active{transform:scale(.92)}
+/* 悬停只在「真悬停」设备生效。Android WebView 里 tap 也会命中 :hover，
+   且会一直挂住到下次点到别处 —— 圆形按钮上就留下一个圆形灰影。
+   用 hover:hover + pointer:fine 把触屏彻底排除，桌面观感不变。 */
+@media (hover:hover) and (pointer:fine){
+  .icon-btn:hover{background:var(--surface-2);color:var(--text)}
+}
+/* 按压态改由 JS 显式控制（见 bindPress）。两个理由：
+   ① 不用 transform:scale —— 缩放会在固定层 / 模糊层（.topbar 有 backdrop-filter）
+      里留下合成残影，正是「按钮底部残留圆形阴影」的观感来源；
+   ② 不依赖 :active —— 它在 Android WebView 抬起后仍残留约 300ms。
+   只改背景色，一定会被完整重绘；transition:none 让按下瞬间就变色。 */
+.icon-btn.pressed{background:var(--ring-bg);color:var(--text);transition:none}
 /* 月份组：无底色。竖线把「时间上下文」与「工具动作」两组分开。
    align-items:center 保证 ‹ 月份 › 三点与两侧元素共用同一条中线。 */
 .month-nav{display:flex;align-items:center;justify-content:center;gap:2px;justify-self:center}
@@ -324,8 +334,11 @@ svg{display:block}
 .cmp-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
 .cmp-actions{display:flex;align-items:center;gap:8px;flex:none}
 .cmp-btn{font-size:13px;color:var(--text-2);padding:7px 12px;border-radius:10px;background:var(--surface-2);white-space:nowrap;transition:background .15s,color .15s}
-.cmp-btn:hover{background:var(--line);color:var(--text)}
-.cmp-btn:active{transform:scale(.96)}
+/* 同上：触屏不参与 hover，按压态交给 JS 的 .pressed */
+@media (hover:hover) and (pointer:fine){
+  .cmp-btn:hover{background:var(--line);color:var(--text)}
+}
+.cmp-btn.pressed{background:var(--line);color:var(--text);transition:none}
 .cmp-duel{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
 .cmp-duel-empty{grid-column:1/-1;background:var(--surface);border:1px dashed var(--line);border-radius:20px;padding:30px 20px;text-align:center;color:var(--text-2);font-size:13px;line-height:1.7}
 .cmp-card-name{font-size:16px;font-weight:700;text-align:center}
@@ -346,6 +359,11 @@ svg{display:block}
 .cmp-nick{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cmp-row-vals{white-space:nowrap;font-variant-numeric:tabular-nums}
 .cmp-row-vals b{font-variant-numeric:tabular-nums}
+/* 切月加载态（2026-11-02）：本机汇总立刻上屏，对方那份还在拉取时占位。
+   绝不能沿用上月数字 —— 那是「新月份标题 + 旧月份数字」的数据错配。 */
+.cmp-spinner{width:14px;height:14px;border-radius:50%;border:2px solid var(--text-3);border-top-color:transparent;animation:cmpSpin .7s linear infinite;flex:none}
+.cmp-card-loading{display:flex;align-items:center;justify-content:center;gap:8px;color:var(--text-2);font-size:13px;min-height:96px}
+.cmp-row-loading{display:flex;align-items:center;justify-content:center;gap:8px;color:var(--text-2);font-size:13px;padding:18px 16px}
 .cmp-refresh{margin-top:14px;height:42px;border-radius:12px;background:var(--surface-2);color:var(--text-2);font-size:14px;font-weight:500;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s,color .15s}
 .cmp-refresh:hover{background:var(--line)}
 .cmp-refresh:disabled{opacity:.65;cursor:default}
@@ -1167,7 +1185,9 @@ if(!cmp||typeof cmp!=='object'){
 }
 if(!cmp||typeof cmp!=='object')cmp={room:'',nickname:'',peer_id:''};
 if(!cmp.peer_id)cmp.peer_id=genPeerId();
-const cmpState={ym:todayISO.slice(0,7),peer:null,data:null,fetchErr:'',detail:null,detailErr:'',detailLoading:false};
+/* gen：每次「改月份/换房间」自增，异步回来的结果只认最后一次（防连点串月）。
+   loading：对方数据正在拉取中，界面用占位而不是上月数字。 */
+const cmpState={ym:todayISO.slice(0,7),peer:null,data:null,fetchErr:'',detail:null,detailErr:'',detailLoading:false,loading:false,gen:0};
 function saveCmp(){localStorage.setItem(cmpKey,JSON.stringify(cmp))}
 function saveCmpCookie(){
   try{document.cookie=cmpCookieKey+'='+encodeURIComponent(JSON.stringify(cmp))+';path=/;max-age=31536000'}catch(e){}
@@ -1470,14 +1490,6 @@ function renderCompare(){
 }
 function renderCmpDuel(){
   const box=document.getElementById('cmpDuel');
-  const peers=(cmpState.data||[]).filter(r=>r.peer_id&&r.peer_id!==cmp.peer_id);
-  if(!peers.length){
-    box.innerHTML='<div class="cmp-duel-empty">'+(cmpState.fetchErr?('拉取失败：'+cmpState.fetchErr):'这个月房间里还没有其他人的数据<br>把比账码发给对方，让 TA 也加入比账吧')+'</div>';
-    return;
-  }
-  if(!cmpState.peer||!peers.some(p=>p.peer_id===cmpState.peer))cmpState.peer=peers[0].peer_id;
-  const peer=peers.find(p=>p.peer_id===cmpState.peer);
-  const me=aggFor(cmpState.ym);
   const card=(name,vals,self,peerId)=>{
     /* 「我」的卡片保持不可点（看自己的明细走账单页）；
        对方卡片可点，data-peer 落到 peer_id 上，点击后打开明细抽屉。 */
@@ -1491,12 +1503,31 @@ function renderCmpDuel(){
       </div>
     </div>`;
   };
+  /* 切月占位：只等对方的汇总，「我」这张卡用本地数据当场画出来 */
+  if(cmpState.loading&&!cmpState.data){
+    box.innerHTML=card(cmp.nickname,aggFor(cmpState.ym),true,'')
+      +'<div class="cmp-card cmp-card-loading"><span class="cmp-spinner"></span>正在拉取房间数据…</div>';
+    return;
+  }
+  const peers=(cmpState.data||[]).filter(r=>r.peer_id&&r.peer_id!==cmp.peer_id);
+  if(!peers.length){
+    box.innerHTML='<div class="cmp-duel-empty">'+(cmpState.fetchErr?('拉取失败：'+cmpState.fetchErr):'这个月房间里还没有其他人的数据<br>把比账码发给对方，让 TA 也加入比账吧')+'</div>';
+    return;
+  }
+  if(!cmpState.peer||!peers.some(p=>p.peer_id===cmpState.peer))cmpState.peer=peers[0].peer_id;
+  const peer=peers.find(p=>p.peer_id===cmpState.peer);
+  const me=aggFor(cmpState.ym);
   const diff=me.expense-peer.expense;
   const vs=diff>0?`我比 TA 多花了 ${fmt(diff)}`:(diff<0?`TA 比我多花了 ${fmt(-diff)}`:'我俩花得一样多');
   box.innerHTML=card(cmp.nickname,me,true,'')+card(peer.nickname,peer,false,peer.peer_id)+`<p class="cmp-vs-line">${vs}</p>`;
 }
 function renderCmpList(){
   const me=aggFor(cmpState.ym);
+  /* 切月占位：房间月榜依赖对方数据，拉取期间用占位行，别用上月的排名糊弄 */
+  if(cmpState.loading&&!cmpState.data){
+    document.getElementById('cmpList').innerHTML='<div class="cmp-row-loading"><span class="cmp-spinner"></span>正在拉取房间数据…</div>';
+    return;
+  }
   const rows=[{peer_id:cmp.peer_id,nickname:cmp.nickname,expense:me.expense,income:me.income,count:me.count}]
     .concat((cmpState.data||[]).filter(r=>r.peer_id&&r.peer_id!==cmp.peer_id));
   const uniq=[];const seen=new Set();
@@ -1517,8 +1548,22 @@ function shiftCmpMonth(d){
   /* 切月后旧的明细缓存必然属于上一个月，必须作废：
      否则抽屉会短暂显示「上个月的明细 + 这个月的标题」，是明确的数据错配。 */
   cmpState.detail=null;cmpState.detailErr='';cmpState.detailLoading=false;
+  /* 2026-11-02 修「点了要等约 1 秒才跳月」：
+     原实现把 renderCompare() 挂在「上传汇总 + 整月替换明细 → 再拉汇总」之后，
+     3 个串行 RTT（东京节点约 300ms/次）全落完界面才动，点下去像卡住。
+     改为两段式：
+     ① 同帧先用本地数据把新月份画出来 —— 「我」的汇总本来是 aggFor 本地算的，
+        不依赖任何网络；对方那份必须置空（data=null）并显示占位，不能挂旧数字。
+     ② 先写后读的铁律不动，仍在后台执行；回来后按 gen 只让最后一次结果上屏。 */
+  cmpState.data=null;cmpState.fetchErr='';cmpState.loading=true;
+  renderCompare();
+  const gen=++cmpState.gen;
   /* 先写后读：必须等本月汇总写入云端成功，再拉取，否则拉回来的名单不含自己。 */
-  cmpFlushThen(cmpState.ym,()=>fetchAggregates(cmpState.ym)).then(()=>renderCompare());
+  cmpFlushThen(cmpState.ym,()=>fetchAggregates(cmpState.ym)).then(()=>{
+    if(gen!==cmpState.gen)return;   /* 期间又切了月，这次结果已过期 */
+    cmpState.loading=false;
+    renderCompare();
+  });
 }
 document.getElementById('cmpJoin').addEventListener('click',()=>{
   const nick=document.getElementById('cmpName').value.trim(),room=document.getElementById('cmpRoom').value.trim().toUpperCase();
@@ -2173,6 +2218,25 @@ function bindKeypad(sel,fn){
   });
 }
 bindKeypad('#keypad .key, #keypadDesk .key',pressKey);
+/* 圆形图标按钮的按压态：按下即上色，抬起 / 取消 / 移出立即复原。
+   与数字键同一思路 —— 不用 :active（Android WebView 抬起后仍残留约 300ms，
+   圆形按钮上就表现为「按钮底下挂着一个圆形阴影」），也不用 transform:scale
+   （缩放会留下合成层残影）。这里只改背景色，由 JS 精确控制起止时间。
+   用委托而非逐个绑定：按钮在页面里是静态的，但委托能一次覆盖 .icon-btn 与 .cmp-btn。 */
+(function bindPress(){
+  const SEL='.icon-btn,.cmp-btn';
+  let cur=null;
+  const clear=()=>{if(cur)cur.classList.remove('pressed');cur=null};
+  document.addEventListener('pointerdown',e=>{
+    const b=e.target&&e.target.closest?e.target.closest(SEL):null;
+    if(!b)return;
+    clear();cur=b;b.classList.add('pressed');
+    /* 触摸有隐式指针捕获，pointerup 必回到原元素；鼠标拖出按钮则靠 leave 复位 */
+    b.addEventListener('pointerleave',clear,{once:true});
+  },{passive:true});
+  document.addEventListener('pointerup',clear,{passive:true});
+  document.addEventListener('pointercancel',clear,{passive:true});
+})();
 // 物理键盘输入金额（数字键盘 / 顶部数字键）
 document.addEventListener('keydown',e=>{
   if($('sheet').hidden)return;
