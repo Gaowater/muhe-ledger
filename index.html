@@ -472,7 +472,7 @@ svg{display:block}
 .sheet-body{display:flex;flex-direction:column}
 .sheet-left,.sheet-right{min-width:0}
 .keypad.dk{display:none}
-.actions-row{display:flex;gap:10px;margin-top:14px;flex:none}
+.actions-row{display:flex;gap:10px;margin-top:10px;flex:none}
 .actions-row .del-btn{flex:1;margin-top:0;white-space:nowrap}
 .actions-row .save-btn{flex:2;margin-top:0;white-space:nowrap}
 .sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
@@ -492,8 +492,8 @@ svg{display:block}
 .cat-dots span{width:6px;height:6px;border-radius:3px;background:var(--text-3);opacity:.35;transition:all .25s var(--ease-quart)}
 .cat-dots span.on{opacity:1;width:18px;background:var(--text-2)}
 .cat-btn{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--text-2)}
-.cat-btn .cwrap{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;transition:all .18s var(--ease-quart)}
-.cat-btn .cwrap svg{width:24px;height:24px}
+.cat-btn .cwrap{width:48px;height:48px;border-radius:15px;display:flex;align-items:center;justify-content:center;transition:all .18s var(--ease-quart)}
+.cat-btn .cwrap svg{width:22px;height:22px}
 .cat-btn.selected .cwrap{transform:scale(1.06)}
 .cat-btn.selected{color:var(--text);font-weight:500}
 .note-input{
@@ -516,12 +516,8 @@ svg{display:block}
 }
 .key.pressed{background:var(--text-3);transform:scale(.96)}
 .key svg{width:22px;height:22px}
-/* 键盘与保存同排：保存不再独占一行，拇指不用离开键盘区就能收尾。
-   桌面端（≥900px）空间充裕，改回独立整行，见下方 media query。 */
-.kp-row{display:flex;gap:8px;align-items:stretch;margin-top:10px}
-.kp-row .keypad{flex:1;margin-top:0}
-.kp-side{width:74px;flex:none;display:flex;flex-direction:column;gap:8px}
-.kp-side .save-btn,.kp-side .del-btn{flex:1;height:auto;margin-top:0;border-radius:13px;white-space:nowrap;line-height:1}
+/* 键盘独占一行，保存另起整行放在最底部 —— 删掉标题栏与常用金额后高度够了，
+   保存回到全宽更符合「最后一击」的心智，也避免右侧竖条挤压键盘列宽。 */
 .save-btn{
   height:52px;border-radius:16px;font-size:16px;font-weight:500;flex:none;
   background:var(--text);color:var(--bg);transition:opacity .2s,transform .12s var(--ease-quart);
@@ -584,11 +580,6 @@ svg{display:block}
   .cat-dots{display:none}
   .keypad.dk{display:grid}
   .keypad.mob{display:none}
-  /* 桌面端空间充裕，保存回到独立整行，不必挤在键盘右侧 */
-  .kp-row{display:block;margin-top:0}
-  .kp-side{width:auto;flex-direction:row;gap:10px;margin-top:14px}
-  .kp-side .save-btn{flex:2;height:52px;border-radius:16px;font-size:16px}
-  .kp-side .del-btn{flex:1;height:52px;border-radius:14px}
   @keyframes sheetPop{from{opacity:0;transform:translate(-50%,-46%) scale(.97)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 }
 
@@ -727,10 +718,6 @@ svg{display:block}
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="记一笔" hidden>
   <div class="sheet-scroll">
     <div class="sheet-grab"></div>
-    <div class="sheet-head">
-      <h2 id="sheetTitle">记一笔</h2>
-      <button class="icon-btn" id="closeSheet" aria-label="关闭"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-    </div>
     <div class="sheet-body">
       <div class="sheet-left">
         <div class="type-switch" role="tablist" aria-label="收支类型">
@@ -746,7 +733,7 @@ svg{display:block}
           <button class="key" data-k="4">4</button><button class="key" data-k="5">5</button><button class="key" data-k="6">6</button>
           <button class="key" data-k="7">7</button><button class="key" data-k="8">8</button><button class="key" data-k="9">9</button>
           <button class="key" data-k=".">.</button><button class="key" data-k="0">0</button>
-          <button class="key" data-k="back" aria-label="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 5.5h10a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5h-10L4 12z"/><path d="M8.5 9.5l5 5M13.5 9.5l-5 5"/></svg></button>
+          <button class="key" data-k="back" aria-label="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 5.5h10a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5h-10L4 12z"/><path d="M9.75 9.5l5 5M14.75 9.5l-5 5"/></svg></button>
         </div>
       </div>
       <div class="sheet-right">
@@ -766,18 +753,16 @@ svg{display:block}
     </div>
   </div>
   <div class="sheet-fixed">
-    <div class="kp-row">
-      <div class="keypad mob" id="keypad" aria-hidden="true">
-        <button class="key" data-k="1">1</button><button class="key" data-k="2">2</button><button class="key" data-k="3">3</button>
-        <button class="key" data-k="4">4</button><button class="key" data-k="5">5</button><button class="key" data-k="6">6</button>
-        <button class="key" data-k="7">7</button><button class="key" data-k="8">8</button><button class="key" data-k="9">9</button>
-        <button class="key" data-k=".">.</button><button class="key" data-k="0">0</button>
-        <button class="key" data-k="back" aria-label="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 5.5h10a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5h-10L4 12z"/><path d="M8.5 9.5l5 5M13.5 9.5l-5 5"/></svg></button>
-      </div>
-      <div class="kp-side">
-        <button class="del-btn" id="delBtn" hidden>删除</button>
-        <button class="save-btn" id="saveBtn" disabled>保存</button>
-      </div>
+    <div class="keypad mob" id="keypad" aria-hidden="true">
+      <button class="key" data-k="1">1</button><button class="key" data-k="2">2</button><button class="key" data-k="3">3</button>
+      <button class="key" data-k="4">4</button><button class="key" data-k="5">5</button><button class="key" data-k="6">6</button>
+      <button class="key" data-k="7">7</button><button class="key" data-k="8">8</button><button class="key" data-k="9">9</button>
+      <button class="key" data-k=".">.</button><button class="key" data-k="0">0</button>
+      <button class="key" data-k="back" aria-label="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 5.5h10a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5h-10L4 12z"/><path d="M9.75 9.5l5 5M14.75 9.5l-5 5"/></svg></button>
+    </div>
+    <div class="actions-row">
+      <button class="del-btn" id="delBtn" hidden>删除</button>
+      <button class="save-btn" id="saveBtn" disabled>保存</button>
     </div>
   </div>
 </div>
@@ -826,7 +811,7 @@ svg{display:block}
       <button class="key" data-k="4">4</button><button class="key" data-k="5">5</button><button class="key" data-k="6">6</button>
       <button class="key" data-k="7">7</button><button class="key" data-k="8">8</button><button class="key" data-k="9">9</button>
       <button class="key" data-k=".">.</button><button class="key" data-k="0">0</button>
-      <button class="key" data-k="back" aria-label="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 5.5h10a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5h-10L4 12z"/><path d="M8.5 9.5l5 5M13.5 9.5l-5 5"/></svg></button>
+      <button class="key" data-k="back" aria-label="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 5.5h10a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5h-10L4 12z"/><path d="M9.75 9.5l5 5M14.75 9.5l-5 5"/></svg></button>
     </div>
     <div class="actions-row">
       <button class="del-btn" id="budgetClear" hidden>清除</button>
@@ -2086,7 +2071,7 @@ function renderCatPager(track,dots,list,sel,onPick){
   track.innerHTML=pages.map(page=>`<div class="cat-page">${page.map(c=>{
     const on=c.id===sel;
     return `<button class="cat-btn${on?' selected':''}" data-cat="${c.id}" role="radio" aria-checked="${on}">
-      <span class="cwrap" style="background:${c.color}1f;color:${c.color};outline:${on?'2px solid '+c.color:'none'}">${wrap(c.icon,24)}</span>${c.name}</button>`;
+      <span class="cwrap" style="background:${c.color}1f;color:${c.color};outline:${on?'2px solid '+c.color:'none'}">${wrap(c.icon,22)}</span>${c.name}</button>`;
   }).join('')}</div>`).join('');
   dots.innerHTML=pages.length>1?pages.map((_,i)=>`<span data-pg="${i}" class="${i===0?'on':''}"></span>`).join(''):'';
   track.querySelectorAll('.cat-btn').forEach(b=>b.addEventListener('click',()=>onPick(b.dataset.cat)));
@@ -2108,7 +2093,6 @@ initCatPager($('budgetCatTrack'),$('budgetCatDots'));
 function refreshSheet(){
   document.querySelectorAll('.tseg').forEach(b=>{const on=b.dataset.type===state.sheet.type;b.classList.toggle('active',on);b.setAttribute('aria-selected',on)});
   amountDisplay.textContent=state.sheet.amount||'0';
-  $('sheetTitle').textContent=state.sheet.editId?'编辑账目':(state.sheet.type==='expense'?'记一笔（支出）':'记一笔（收入）');
   renderCatPager($('catTrack'),$('catDots'),catList(state.sheet.type),state.sheet.cat,id=>{state.sheet.cat=id;refreshSheet()});
   $('saveBtn').disabled=!state.sheet.amount;
 }
@@ -2244,7 +2228,7 @@ $('calToday').addEventListener('click',()=>{setSheetDate(todayISO);closeCal()});
   el.addEventListener('scroll',()=>onWheelScroll(i===2),{passive:true});
 });
 $('addBtn').addEventListener('click',()=>openSheet());
-$('closeSheet').addEventListener('click',closeSheet);
+/* 顶部关闭按钮已移除：点背景遮罩、按返回键或 Esc 关闭 */
 backdrop.addEventListener('click',closeSheet);
 document.querySelectorAll('.tseg').forEach(b=>b.addEventListener('click',()=>{
   state.sheet.type=b.dataset.type;
