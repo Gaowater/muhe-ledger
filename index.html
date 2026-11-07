@@ -235,8 +235,7 @@ svg{display:block}
 .quick-chip{height:34px;padding:0 16px;border-radius:17px;background:var(--surface-2);font-size:14px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--text-2);transition:all .15s var(--ease-quart)}
 .quick-chip:active{transform:scale(.94);background:var(--text-3);color:var(--surface)}
 /* 日期行 */
-.date-row{display:flex;align-items:center;gap:10px;margin-top:10px}
-.date-row label{font-size:14px;color:var(--text-2);flex:none}
+/* 日期行已与备注合并成 .note-row，原 .date-row 规则随之移除 */
 .date-input{flex:1;height:44px;background:var(--surface-2);border:none;border-radius:12px;padding:0 14px;font-size:15px;font-family:inherit;color:var(--text);outline:none}
 /* 日期选择：页面内月历（WebView 的系统 date picker 可能不弹） */
 .date-pick{
@@ -248,33 +247,36 @@ svg{display:block}
 .date-pick span{font-variant-numeric:var(--num)}
 .date-pick:active{background:var(--line)}
 .date-pick svg{color:var(--text-2);flex:none}
-.cal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:60;animation:fadeIn .2s ease both}
-.cal-sheet{
-  position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:61;
-  width:min(340px,calc(100vw - 40px));max-width:340px;
-  background:var(--surface);border-radius:24px;padding:18px;
-  box-shadow:0 24px 60px rgba(0,0,0,.24);animation:sheetPop .3s var(--ease-expo) both;
+/* 日期选择：滚轮式（年 / 月 / 日）。日列由三段克隆构成，滚到接缝处无动画
+   重置到中间段，因此既能「一直滚下去」又不会看到断点。 */
+.wheel-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:60;animation:fadeIn .2s ease both}
+.wheel-sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:61;
+  background:var(--surface);border-radius:24px 24px 0 0;border-top:1px solid var(--line);
+  padding:8px 18px calc(14px + env(safe-area-inset-bottom));
+  animation:sheetUp .34s var(--ease-expo) both;
 }
-.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.cal-title{font-size:16px;font-weight:600;font-variant-numeric:var(--num)}
-.cal-week,.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
-.cal-week{margin-bottom:4px}
-.cal-week span{text-align:center;font-size:11px;color:var(--text-3);padding:4px 0}
-.cal-day{
-  height:38px;border-radius:19px;display:flex;align-items:center;justify-content:center;
-  font-size:14px;font-variant-numeric:var(--num);color:var(--text);position:relative;
-  transition:background .12s var(--ease-quart),color .12s;
+.wheel-head{display:flex;align-items:center;justify-content:space-between;height:46px}
+.wheel-head button{font-size:15px;color:var(--text-2);padding:6px 2px;min-width:52px;text-align:left}
+.wheel-head .wheel-done{color:var(--accent);font-weight:500;text-align:right}
+.wheel-title{font-size:15px;font-weight:600;font-variant-numeric:var(--num);letter-spacing:.01em}
+.wheel-body{position:relative;display:flex;height:200px;margin-top:2px}
+/* 上下各留 80px 内边距，让首尾项也能滚到中线：第 i 项居中时 scrollTop 恒为 i*40 */
+.wheel-col{
+  flex:1;height:100%;overflow-y:auto;padding:80px 0;position:relative;z-index:1;
+  scroll-snap-type:y mandatory;scroll-behavior:auto;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 26%,#000 74%,transparent 100%);
+  mask-image:linear-gradient(to bottom,transparent 0,#000 26%,#000 74%,transparent 100%);
 }
-.cal-day.empty{visibility:hidden;padding:0;line-height:1}
-.cal-day.today{font-weight:700}
-.cal-day.today::after{content:'';position:absolute;bottom:5px;width:4px;height:4px;border-radius:2px;background:var(--accent)}
-.cal-day.sel{background:var(--accent);color:#fff;font-weight:600}
-.cal-day.sel.today::after{background:#fff}
-.cal-day:active{background:var(--surface-2)}
-.cal-actions{display:flex;gap:10px;margin-top:16px}
-.cal-actions button{flex:1;height:42px;border-radius:14px;font-size:15px;font-weight:500;background:var(--surface-2);color:var(--text-2);transition:transform .12s var(--ease-quart)}
-.cal-actions button:active{transform:scale(.97)}
-.cal-actions .cal-done{background:var(--text);color:var(--bg)}
+.wheel-col::-webkit-scrollbar{display:none}
+.wheel-item{
+  height:40px;line-height:40px;text-align:center;font-size:18px;font-weight:500;
+  font-variant-numeric:var(--num);color:var(--text);scroll-snap-align:center;
+  -webkit-user-select:none;user-select:none;
+}
+.wheel-band{position:absolute;left:0;right:0;top:80px;height:40px;border-radius:12px;background:var(--surface-2);z-index:0;pointer-events:none}
+.wheel-unit{position:absolute;z-index:2;pointer-events:none;font-size:13px;color:var(--text-3);top:88px;opacity:0}
 /* 删除按钮 */
 .del-btn{margin-top:10px;height:46px;padding:0 18px;border-radius:14px;background:var(--surface-2);color:var(--neg);font-size:15px;font-weight:500;line-height:1;white-space:nowrap;display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
 .del-btn:active{background:var(--neg);color:var(--surface)}
@@ -458,13 +460,13 @@ svg{display:block}
 .sheet{
   position:fixed;left:0;right:0;bottom:0;z-index:50;
   background:var(--surface);border-radius:24px 24px 0 0;
-  max-height:88vh;display:flex;flex-direction:column;
-  padding:12px 20px calc(20px + env(safe-area-inset-bottom));
+  max-height:90vh;display:flex;flex-direction:column;
+  padding:12px 20px calc(16px + env(safe-area-inset-bottom));
   animation:sheetUp .38s var(--ease-expo) both;
   border-top:1px solid var(--line);
 }
 @keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
-.sheet-grab{width:36px;height:4px;border-radius:2px;background:var(--text-3);margin:0 auto 14px;flex:none}
+.sheet-grab{width:36px;height:4px;border-radius:2px;background:var(--text-3);margin:0 auto 10px;flex:none}
 .sheet-scroll{overflow-y:auto;min-height:0;-webkit-overflow-scrolling:touch}
 .sheet-fixed{flex:none}
 .sheet-body{display:flex;flex-direction:column}
@@ -475,17 +477,18 @@ svg{display:block}
 .actions-row .save-btn{flex:2;margin-top:0;white-space:nowrap}
 .sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .sheet-head h2{font-size:17px;font-weight:600}
-.type-switch{display:flex;background:var(--surface-2);border-radius:12px;padding:3px;margin-top:12px}
+.type-switch{display:flex;background:var(--surface-2);border-radius:12px;padding:3px;margin-top:8px}
 .tseg{flex:1;height:38px;border-radius:10px;font-size:14px;font-weight:500;color:var(--text-2);transition:all .2s var(--ease-quart)}
 .tseg.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
-.amount-row{display:flex;align-items:baseline;justify-content:center;gap:8px;padding:26px 0 18px}
+.amount-row{display:flex;align-items:baseline;justify-content:center;gap:8px;padding:16px 0 12px}
 .amount-row .cur{font-size:28px;font-weight:600;color:var(--text-2)}
-.amount-display{font-size:52px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;min-height:60px}
+.amount-display{font-size:52px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;min-height:56px;line-height:1.1}
 .cat-pager{position:relative}
 .cat-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .cat-track::-webkit-scrollbar{display:none}
-.cat-page{flex:none;width:100%;display:grid;grid-template-columns:repeat(4,1fr);gap:14px 8px;scroll-snap-align:start;padding:4px 2px 12px}
-.cat-dots{display:flex;justify-content:center;gap:6px;padding-bottom:10px}
+.cat-page{flex:none;width:100%;display:grid;grid-template-columns:repeat(4,1fr);gap:12px 8px;scroll-snap-align:start;padding:4px 2px 10px}
+.cat-dots{display:flex;justify-content:center;gap:6px;padding-bottom:6px}
+.cat-dots:empty{display:none}
 .cat-dots span{width:6px;height:6px;border-radius:3px;background:var(--text-3);opacity:.35;transition:all .25s var(--ease-quart)}
 .cat-dots span.on{opacity:1;width:18px;background:var(--text-2)}
 .cat-btn{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--text-2)}
@@ -499,17 +502,28 @@ svg{display:block}
   margin-top:4px;
 }
 .note-input::placeholder{color:var(--text-3)}
-.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;flex:none}
+/* 备注与日期并成一行：原来「备注」「日期」各占一行共 96px，快速记账时
+   日期几乎不改，横向并排后省下约 50px 给分类区。 */
+.note-row{display:flex;gap:8px;align-items:center;margin-top:10px}
+.note-row .note-input{flex:1;min-width:0;margin-top:0;height:44px}
+.note-row .date-pick{flex:none;width:110px;height:44px}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px;flex:none}
 .key{
-  height:52px;border-radius:14px;background:var(--surface-2);font-size:22px;font-weight:500;
+  height:46px;border-radius:13px;background:var(--surface-2);font-size:21px;font-weight:500;
   display:flex;align-items:center;justify-content:center;
   transition:background .06s,transform .06s;
   -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
 }
 .key.pressed{background:var(--text-3);transform:scale(.96)}
 .key svg{width:22px;height:22px}
+/* 键盘与保存同排：保存不再独占一行，拇指不用离开键盘区就能收尾。
+   桌面端（≥900px）空间充裕，改回独立整行，见下方 media query。 */
+.kp-row{display:flex;gap:8px;align-items:stretch;margin-top:10px}
+.kp-row .keypad{flex:1;margin-top:0}
+.kp-side{width:74px;flex:none;display:flex;flex-direction:column;gap:8px}
+.kp-side .save-btn,.kp-side .del-btn{flex:1;height:auto;margin-top:0;border-radius:13px;white-space:nowrap;line-height:1}
 .save-btn{
-  margin-top:14px;height:52px;border-radius:16px;font-size:16px;font-weight:500;flex:none;
+  height:52px;border-radius:16px;font-size:16px;font-weight:500;flex:none;
   background:var(--text);color:var(--bg);transition:opacity .2s,transform .12s var(--ease-quart);
 }
 .save-btn:disabled{opacity:.35;cursor:default}
@@ -561,12 +575,20 @@ svg{display:block}
   .add-btn{max-width:320px}
   .sheet{left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-50%);width:640px;border-radius:24px;max-height:86vh;animation:sheetPop .35s var(--ease-expo) both}
   .sheet-body{display:grid;grid-template-columns:270px 1fr;gap:28px}
+  /* 备注行贴到右列底部，与左列键盘底边对齐；否则合并成一行后右列下方会空一截 */
+  .sheet-right{display:flex;flex-direction:column}
+  .sheet-right .note-row{margin-top:auto;padding-top:16px}
   .sheet-left .type-switch{margin-top:0}
   .cat-track{overflow-y:auto;overflow-x:hidden;scroll-snap-type:none;display:flex;flex-direction:column;max-height:236px}
   .cat-page{width:100%;scroll-snap-align:none}
   .cat-dots{display:none}
   .keypad.dk{display:grid}
   .keypad.mob{display:none}
+  /* 桌面端空间充裕，保存回到独立整行，不必挤在键盘右侧 */
+  .kp-row{display:block;margin-top:0}
+  .kp-side{width:auto;flex-direction:row;gap:10px;margin-top:14px}
+  .kp-side .save-btn{flex:2;height:52px;border-radius:16px;font-size:16px}
+  .kp-side .del-btn{flex:1;height:52px;border-radius:14px}
   @keyframes sheetPop{from{opacity:0;transform:translate(-50%,-46%) scale(.97)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 }
 
@@ -719,7 +741,6 @@ svg{display:block}
           <span class="cur">¥</span>
           <span class="amount-display num" id="amountDisplay">0</span>
         </div>
-        <div class="quick-row" id="quickRow"></div>
         <div class="keypad dk" id="keypadDesk" aria-hidden="true">
           <button class="key" data-k="1">1</button><button class="key" data-k="2">2</button><button class="key" data-k="3">3</button>
           <button class="key" data-k="4">4</button><button class="key" data-k="5">5</button><button class="key" data-k="6">6</button>
@@ -733,45 +754,46 @@ svg{display:block}
           <div class="cat-track" id="catTrack"></div>
           <div class="cat-dots" id="catDots"></div>
         </div>
-        <input class="note-input" id="noteInput" type="text" maxlength="30" placeholder="备注（选填）" autocomplete="off">
-        <div class="date-row">
-          <label>日期</label>
+        <div class="note-row">
+          <input class="note-input" id="noteInput" type="text" maxlength="30" placeholder="备注（选填）" autocomplete="off">
           <button type="button" class="date-pick" id="datePick" aria-label="选择日期">
             <span id="datePickText">—</span>
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3.5v3M16 3.5v3"/></svg>
           </button>
-          <input type="date" id="dateInput" hidden aria-hidden="true" tabindex="-1">
         </div>
+        <input type="date" id="dateInput" hidden aria-hidden="true" tabindex="-1">
       </div>
     </div>
   </div>
   <div class="sheet-fixed">
-    <div class="keypad mob" id="keypad" aria-hidden="true">
-      <button class="key" data-k="1">1</button><button class="key" data-k="2">2</button><button class="key" data-k="3">3</button>
-      <button class="key" data-k="4">4</button><button class="key" data-k="5">5</button><button class="key" data-k="6">6</button>
-      <button class="key" data-k="7">7</button><button class="key" data-k="8">8</button><button class="key" data-k="9">9</button>
-      <button class="key" data-k=".">.</button><button class="key" data-k="0">0</button>
-      <button class="key" data-k="back" aria-label="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 5.5h10a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5h-10L4 12z"/><path d="M8.5 9.5l5 5M13.5 9.5l-5 5"/></svg></button>
-    </div>
-    <div class="actions-row">
-      <button class="del-btn" id="delBtn" hidden>删除</button>
-      <button class="save-btn" id="saveBtn" disabled>保存</button>
+    <div class="kp-row">
+      <div class="keypad mob" id="keypad" aria-hidden="true">
+        <button class="key" data-k="1">1</button><button class="key" data-k="2">2</button><button class="key" data-k="3">3</button>
+        <button class="key" data-k="4">4</button><button class="key" data-k="5">5</button><button class="key" data-k="6">6</button>
+        <button class="key" data-k="7">7</button><button class="key" data-k="8">8</button><button class="key" data-k="9">9</button>
+        <button class="key" data-k=".">.</button><button class="key" data-k="0">0</button>
+        <button class="key" data-k="back" aria-label="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 5.5h10a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5h-10L4 12z"/><path d="M8.5 9.5l5 5M13.5 9.5l-5 5"/></svg></button>
+      </div>
+      <div class="kp-side">
+        <button class="del-btn" id="delBtn" hidden>删除</button>
+        <button class="save-btn" id="saveBtn" disabled>保存</button>
+      </div>
     </div>
   </div>
 </div>
 
-<div class="cal-backdrop" id="calBackdrop" hidden></div>
-<div class="cal-sheet" id="dateCal" role="dialog" aria-modal="true" aria-label="选择日期" hidden>
-  <div class="cal-head">
-    <button class="icon-btn" id="calPrev" aria-label="上个月"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg></button>
-    <span class="cal-title" id="calTitle">—</span>
-    <button class="icon-btn" id="calNext" aria-label="下个月"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg></button>
-  </div>
-  <div class="cal-week" aria-hidden="true"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
-  <div class="cal-grid" id="calGrid"></div>
-  <div class="cal-actions">
+<div class="wheel-backdrop" id="calBackdrop" hidden></div>
+<div class="wheel-sheet" id="dateCal" role="dialog" aria-modal="true" aria-label="选择日期" hidden>
+  <div class="wheel-head">
     <button id="calToday">今天</button>
-    <button class="cal-done" id="calDone">完成</button>
+    <span class="wheel-title" id="calTitle">—</span>
+    <button class="wheel-done" id="calDone">完成</button>
+  </div>
+  <div class="wheel-body">
+    <div class="wheel-band" aria-hidden="true"></div>
+    <div class="wheel-col" id="wheelY" role="listbox" aria-label="年"></div>
+    <div class="wheel-col" id="wheelM" role="listbox" aria-label="月"></div>
+    <div class="wheel-col" id="wheelD" role="listbox" aria-label="日"></div>
   </div>
 </div>
 
@@ -950,7 +972,9 @@ living:'<rect x="4" y="6" width="16" height="12" rx="2"/><path d="M4 8.5 12 14l8
 bonus:'<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5.5a2 2 0 0 0 0 4H8M16 6h2.5a2 2 0 0 1 0 4H16"/><path d="M12 13v4M9 19h6"/>',
 invest:'<path d="M4 17l5-5 3.5 3.5L20 8"/><path d="M15 8h5v5"/>',
 parttime:'<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3.5 2"/>',
-hongbao:'<rect x="4.5" y="7.5" width="15" height="12" rx="2.5"/><path d="M4.5 10.8C7 8.6 9.6 8.4 12 10.4c2.4-2 5-1.8 7.5.4"/><path d="M12 10.5V16"/><circle cx="12" cy="17.6" r="1.2"/>',
+hongbao:'<rect x="4.8" y="3.2" width="14.4" height="17.6" rx="2.6"/><path d="M4.8 7.2c2.4 2.1 4.8 2.1 7.2 0 2.4 2.1 4.8 2.1 7.2 0"/><circle cx="12" cy="14.2" r="2.7"/>',
+activity:'<path d="M6.8 20V3.9"/><path d="M6.8 4.9h11.2l-2.9 3.8 2.9 3.8H6.8"/>',
+reimburse:'<path d="M6 3.5h12v17l-3-2.1-3 2.1-3-2.1-3 2.1z"/><path d="M9.2 8h5.6M9.2 12h5.6"/>',
 other:'<circle cx="12" cy="12" r="3"/>',
 sun:'<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/>',
 moon:'<path d="M20.87 14.5A8.5 8.5 0 0 1 10.37 4a8.5 8.5 0 1 0 10.5 10.5z"/>'};
@@ -959,16 +983,21 @@ const CATS_EXPENSE=[
 {id:'food',name:'餐饮',color:'#ff9500',icon:'food'},
 {id:'trans',name:'交通',color:'#0a84ff',icon:'trans'},
 {id:'shop',name:'购物',color:'#af52de',icon:'shop'},
-{id:'hongbao',name:'红包',color:'#f43f5e',icon:'hongbao'},
 {id:'fun',name:'娱乐',color:'#ff2d55',icon:'fun'},
-{id:'health',name:'医疗',color:'#ff3b30',icon:'health'},
 {id:'edu',name:'学习',color:'#32d74b',icon:'edu'},
+{id:'hongbao',name:'红包',color:'#f43f5e',icon:'hongbao'},
+{id:'health',name:'医疗',color:'#ff3b30',icon:'health'},
 {id:'other',name:'其他',color:'#8e8e93',icon:'other'}];
+/* 收入固定 8 个：4 列 × 2 行正好铺满，高度与 5 个时完全相同（第二行本来就占着）。
+   pagesOf 对 8 个返回单页，不会出现分页点。 */
 const CATS_INCOME=[
 {id:'living',name:'生活费',color:'#34c759',icon:'living'},
 {id:'hongbao',name:'红包',color:'#f43f5e',icon:'hongbao'},
-{id:'bonus',name:'奖金',color:'#f5a623',icon:'bonus'},
+{id:'bonus',name:'奖学金',color:'#f5a623',icon:'bonus'},
 {id:'parttime',name:'兼职',color:'#00c7be',icon:'parttime'},
+{id:'activity',name:'活动',color:'#5ac8fa',icon:'activity'},
+{id:'reimburse',name:'报销',color:'#af52de',icon:'reimburse'},
+{id:'invest',name:'利息',color:'#0a84ff',icon:'invest'},
 {id:'other',name:'其他',color:'#8e8e93',icon:'other'}];
 const CATS=CATS_EXPENSE;
 const catList=type=>type==='income'?CATS_INCOME:CATS_EXPENSE;
@@ -2049,34 +2078,9 @@ $('themeToggle').addEventListener('click',()=>{theme=theme==='dark'?'light':'dar
 
 /* 记一笔 / 编辑 */
 const sheet=$('sheet'),backdrop=$('backdrop'),amountDisplay=$('amountDisplay');
-function computeQuickAmounts(type){
-  const freq={};
-  entries.forEach(e=>{
-    if(e.type!==type)return;
-    const a=Math.round(e.amount);
-    if(a>0)freq[a]=(freq[a]||0)+1;
-  });
-  const picked=Object.entries(freq)
-    .filter(([,c])=>c>=2)
-    .sort((a,b)=>b[1]-a[1]||a[0]-b[0])
-    .map(x=>+x[0])
-    .slice(0,6);
-  if(type==='income'){
-    // 收入默认只补一个 1500（不堆默认金额）
-    if(!picked.includes(1500))picked.push(1500);
-  }else{
-    [8,15,20,32,50,100].forEach(d=>{if(picked.length<6&&!picked.includes(d))picked.push(d)});
-  }
-  return picked;
-}
-function renderQuick(){
-  const list=computeQuickAmounts(state.sheet.type);
-  $('quickRow').innerHTML=list.map(a=>`<button class="quick-chip" data-q="${a}">¥${a}</button>`).join('');
-}
-$('quickRow').addEventListener('click',e=>{
-  const c=e.target.closest('.quick-chip');
-  if(c){state.sheet.amount=c.dataset.q;refreshSheet()}
-});
+/* 常用金额（快捷 chips）已移除：支出与收入都不再显示，金额一律从键盘输入。
+   它原本占两行 80px 并直接把分类区挤出可视范围，而键盘本身已经够快。
+   预算弹层里的静态快捷金额（#budgetQuickRow）是另一套，不受影响。 */
 function renderCatPager(track,dots,list,sel,onPick){
   const pages=pagesOf(list);
   track.innerHTML=pages.map(page=>`<div class="cat-page">${page.map(c=>{
@@ -2115,64 +2119,129 @@ function openSheet(editId){
     :{type:'expense',cat:'food',amount:'',note:'',date:todayISO,editId:null};
   $('noteInput').value=state.sheet.note;
   $('dateInput').value=state.sheet.date;
-  $('datePickText').textContent=state.sheet.date;
+  $('datePickText').textContent=state.sheet.date.slice(5);
   $('delBtn').hidden=!e0;
-  renderQuick();
   refreshSheet();
   sheet.hidden=false;backdrop.hidden=false;
   document.body.style.overflow='hidden';
 }
 function closeSheet(){closeCal();sheet.hidden=true;backdrop.hidden=true;document.body.style.overflow=''}
-/* 日期选择：页面内月历（WebView 的系统 date picker 在部分环境不弹，改用自绘） */
-const calState={y:0,m:0};
+/* 日期选择：滚轮式（年 / 月 / 日）。
+   ① 每列上下各留 80px 内边距，第 i 项居中时 scrollTop 恒等于 i×40，
+      取当前值只需 Math.round(scrollTop/40)，不做 boundingClientRect 测量。
+   ② 日列渲染三段相同克隆，滚到接缝处无动画重置到中间段 —— 于是可以一直
+      往下滚（循环），而年月仍是有限列表，滚到边界就停。
+   ③ 吸附交给 scroll-snap；重置只在滚动停止 120ms 后执行，避免打断惯性。
+   ④ 改年月后天数变了，日列重建并把超限的日钳到月末（1/31 → 2/28）。 */
+const WHEEL_ITEM=40;
+const wheel={y:0,m:0,d:0};
+const YEAR_MIN=2020,YEAR_MAX=2035;
+let wheelTimer=null;
+const monthDays=(y,m)=>new Date(y,m,0).getDate();
+const wheelYears=()=>{const a=[];for(let y=YEAR_MIN;y<=YEAR_MAX;y++)a.push(y);return a};
+const seq=(n)=>Array.from({length:n},(_,i)=>i+1);
+const isoOf=(y,m,d)=>`${y}-${pad(m)}-${pad(d)}`;
+const wY=()=>$('wheelY'),wM=()=>$('wheelM'),wD=()=>$('wheelD');
+
 function setSheetDate(iso){
   state.sheet.date=iso;
   $('dateInput').value=iso;
-  $('datePickText').textContent=iso;
+  $('datePickText').textContent=iso.slice(5);   // 与备注同一行，只显示 11-07
 }
 function curSheetDate(){return $('dateInput').value||state.sheet.date||todayISO}
-function renderCal(){
-  const{y,m}=calState;
-  $('calTitle').textContent=`${y}年${m+1}月`;
-  const sel=curSheetDate();
-  const first=new Date(y,m,1).getDay();
-  const days=new Date(y,m+1,0).getDate();
-  let html='';
-  for(let i=0;i<first;i++)html+='<div class="cal-day empty"></div>';
-  for(let d=1;d<=days;d++){
-    const iso=`${y}-${pad(m+1)}-${pad(d)}`;
-    const cls=['cal-day',iso===todayISO?'today':'',iso===sel?'sel':''].filter(Boolean).join(' ');
-    html+=`<div class="${cls}" data-d="${iso}" role="button" tabindex="0" aria-label="${y}年${m+1}月${d}日">${d}</div>`;
+
+function fillWheelCol(el,values,loop){
+  const one=values.map(v=>`<div class="wheel-item">${v}</div>`).join('');
+  el.innerHTML=loop?one+one+one:one;
+  el.dataset.n=values.length;
+  el.dataset.loop=loop?'1':'';
+}
+function scrollWheelTo(el,index){el.scrollTop=index*WHEEL_ITEM}
+
+function readWheel(el){
+  const n=+el.dataset.n;
+  let idx=Math.round(el.scrollTop/WHEEL_ITEM);
+  if(el.dataset.loop==='1'){
+    const setH=n*WHEEL_ITEM;
+    if(idx>=n*2){el.scrollTop-=setH;idx-=n}
+    else if(idx<n){el.scrollTop+=setH;idx+=n}
+    idx=((idx%n)+n)%n;
+  }else{
+    idx=Math.min(n-1,Math.max(0,idx));
   }
-  $('calGrid').innerHTML=html;
+  return idx;
+}
+function updateWheelTitle(){
+  $('calTitle').textContent=`${wheel.y}年${wheel.m}月${wheel.d}日`;
+}
+/* 把三列当前位置读回 wheel，并顺带修正日列克隆的接缝 */
+function flushWheel(){
+  const y=wheelYears()[readWheel(wY())];
+  const m=readWheel(wM())+1;
+  const n=monthDays(y,m);
+  const d=Math.min(readWheel(wD())+1,n);
+  wheel.y=y;wheel.m=m;wheel.d=d;
+  updateWheelTitle();
+  return wheel;
+}
+function buildWheel(){
+  fillWheelCol(wY(),wheelYears(),false);
+  fillWheelCol(wM(),seq(12),false);
+  const n=monthDays(wheel.y,wheel.m);
+  if(wheel.d>n)wheel.d=n;
+  fillWheelCol(wD(),seq(n),true);
+  scrollWheelTo(wY(),wheel.y-YEAR_MIN);
+  scrollWheelTo(wM(),wheel.m-1);
+  scrollWheelTo(wD(),n+wheel.d-1);   // 定位到第二段，前后都有余量
+  updateWheelTitle();
+}
+function onWheelScroll(isDay){
+  clearTimeout(wheelTimer);
+  wheelTimer=setTimeout(()=>{
+    const y=wheelYears()[readWheel(wY())];
+    const m=readWheel(wM())+1;
+    const n=monthDays(y,m);
+    const ymChanged=(y!==wheel.y||m!==wheel.m);
+    wheel.y=y;wheel.m=m;
+    if(ymChanged){
+      const keep=Math.min(wheel.d,n);
+      fillWheelCol(wD(),seq(n),true);
+      scrollWheelTo(wD(),n+keep-1);
+      wheel.d=keep;
+    }else if(isDay){
+      wheel.d=readWheel(wD())+1;
+    }
+    updateWheelTitle();
+  },120);
 }
 function openCal(){
   const p=curSheetDate().split('-');
-  calState.y=+p[0];calState.m=+p[1]-1;
-  renderCal();
+  wheel.y=Math.min(YEAR_MAX,Math.max(YEAR_MIN,+p[0]));
+  wheel.m=+p[1];
+  wheel.d=+p[2];
   $('dateCal').hidden=false;$('calBackdrop').hidden=false;
+  buildWheel();
+  /* 刚摘掉 hidden，布局可能还没结算；下一帧再校正一次滚动位置，
+     否则 scrollTop 会被吸到 0 导致默认停在 2020 年 1 月。 */
+  requestAnimationFrame(()=>{
+    scrollWheelTo(wY(),wheel.y-YEAR_MIN);
+    scrollWheelTo(wM(),wheel.m-1);
+    scrollWheelTo(wD(),monthDays(wheel.y,wheel.m)+wheel.d-1);
+    updateWheelTitle();
+  });
 }
 function closeCal(){$('dateCal').hidden=true;$('calBackdrop').hidden=true}
-function shiftCalMonth(d){
-  calState.m+=d;
-  if(calState.m<0){calState.m=11;calState.y--}
-  else if(calState.m>11){calState.m=0;calState.y++}
-  renderCal();
-}
+
 $('datePick').addEventListener('click',openCal);
 $('calBackdrop').addEventListener('click',closeCal);
-$('calDone').addEventListener('click',closeCal);
-$('calPrev').addEventListener('click',()=>shiftCalMonth(-1));
-$('calNext').addEventListener('click',()=>shiftCalMonth(1));
-$('calToday').addEventListener('click',()=>{setSheetDate(todayISO);closeCal()});
-$('calGrid').addEventListener('click',e=>{
-  const d=e.target.closest('.cal-day');
-  if(d&&d.dataset.d){setSheetDate(d.dataset.d);closeCal()}
+$('calDone').addEventListener('click',()=>{
+  flushWheel();                                  // 滚完立刻点完成，别拿到 120ms 前的旧值
+  setSheetDate(isoOf(wheel.y,wheel.m,wheel.d));
+  closeCal();
 });
-$('calGrid').addEventListener('keydown',e=>{
-  if(e.key!=='Enter'&&e.key!==' ')return;
-  const d=e.target.closest('.cal-day');
-  if(d&&d.dataset.d){e.preventDefault();setSheetDate(d.dataset.d);closeCal()}
+$('calToday').addEventListener('click',()=>{setSheetDate(todayISO);closeCal()});
+[wY(),wM(),wD()].forEach((el,i)=>{
+  el.addEventListener('scroll',()=>onWheelScroll(i===2),{passive:true});
 });
 $('addBtn').addEventListener('click',()=>openSheet());
 $('closeSheet').addEventListener('click',closeSheet);
@@ -2181,7 +2250,6 @@ document.querySelectorAll('.tseg').forEach(b=>b.addEventListener('click',()=>{
   state.sheet.type=b.dataset.type;
   const list=catList(state.sheet.type);
   if(!list.some(c=>c.id===state.sheet.cat))state.sheet.cat=list[0].id;
-  renderQuick();
   refreshSheet();
 }));
 function pressKey(key){
